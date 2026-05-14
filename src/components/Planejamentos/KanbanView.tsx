@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  closestCorners, type DragEndEvent, type DragStartEvent,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors,
+  useDroppable, closestCorners, pointerWithin, rectIntersection,
+  type DragEndEvent, type DragStartEvent, type DragOverEvent, type CollisionDetection,
 } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Plus, Trash2, MoreVertical, Loader2, Calendar as CalIcon, X, Pencil } from "lucide-react";
 import { format } from "date-fns";

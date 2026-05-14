@@ -28,33 +28,50 @@ const COLUMNS = [
 
 export function DateKanbanModal({ date, onClose }: { date: Date | null; onClose: () => void }) {
   const { user } = useAuth();
-  const { tasks, loading, addTask, updateTaskStatus, deleteTask, updateTaskTitle } = useCalendarTasks(user?.id, date);
+  const { tasks, loading, addTask, updateTaskStatus, setTaskStatusLocal, deleteTask, updateTaskTitle } = useCalendarTasks(user?.id, date);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [newTaskCol, setNewTaskCol] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Lembrete | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
+
+  const collisionDetection: CollisionDetection = (args) => {
+    const pointer = pointerWithin(args);
+    if (pointer.length > 0) return pointer;
+    return rectIntersection(args);
+  };
 
   const activeTask = useMemo(() => tasks.find((t) => t.id === activeId), [tasks, activeId]);
+
+  const resolveTargetStatus = (overId: string): string | null => {
+    const overColumn = COLUMNS.find((c) => c.id === overId);
+    if (overColumn) return overColumn.id;
+    const overTask = tasks.find((t) => t.id === overId);
+    return overTask ? (overTask.status || "todo") : null;
+  };
+
+  const onDragOver = (e: DragOverEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const task = tasks.find((t) => t.id === active.id);
+    if (!task) return;
+    const target = resolveTargetStatus(over.id as string);
+    if (!target) return;
+    if ((task.status || "todo") === target) return;
+    // Local-only optimistic move while dragging — no DB write yet
+    setTaskStatusLocal(task.id, target);
+  };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = e;
     if (!over) return;
-
     const taskId = active.id as string;
-    const overId = over.id as string;
-
-    // Determine target status. If dropped over a column, it's the column id.
-    // If dropped over another task, it's that task's status.
-    const overColumn = COLUMNS.find(c => c.id === overId);
-    const overTask = tasks.find(t => t.id === overId);
-    
-    const targetStatus = overColumn ? overColumn.id : (overTask ? overTask.status : null);
-
-    if (targetStatus && taskId !== overId) {
-      void updateTaskStatus(taskId, targetStatus);
-    }
+    const target = resolveTargetStatus(over.id as string);
+    if (target) void updateTaskStatus(taskId, target);
   };
 
   return (

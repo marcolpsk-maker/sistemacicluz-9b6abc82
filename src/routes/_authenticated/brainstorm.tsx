@@ -324,6 +324,12 @@ function Inner() {
       else if (e.key === "ArrowDown") { e.preventDefault(); navigate("down"); }
       else if (e.key === "ArrowLeft") { e.preventDefault(); navigate("left"); }
       else if (e.key === "ArrowRight") { e.preventDefault(); navigate("right"); }
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        const fn = undoStackRef.current.pop();
+        if (fn) void fn();
+        else toast.info("Nada para desfazer");
+      }
       else if (e.key === "Escape") {
         setSelectedId(null);
       }

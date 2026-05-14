@@ -60,73 +60,60 @@ function Inner() {
     })();
   }, [user]);
 
-  const handleEditNode = useCallback(async (id: string, oldTitle: string) => {
-    const newTitle = window.prompt("Editar ideia:", oldTitle);
-    if (newTitle == null || !newTitle.trim()) return;
+  const handleEditNode = useCallback(async (id: string, newTitle: string) => {
+    if (!newTitle || !newTitle.trim()) return;
     await supabase.from("brainstorm_nodes").update({ title: newTitle.trim() }).eq("id", id);
     setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, label: newTitle.trim() } } : n));
   }, [setNodes]);
 
+  const handleDeleteNode = useCallback(async (id: string) => {
+    await supabase.from("brainstorm_connections").delete().or(`source_id.eq.${id},target_id.eq.${id}`);
+    await supabase.from("brainstorm_nodes").delete().eq("id", id);
+    setNodes((nds) => nds.filter((n) => n.id !== id));
+    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+  }, [setNodes, setEdges]);
+
   const handleAddChild = useCallback(async (parentId: string) => {
     if (!user || !activeMap) return;
-    setNodes((currentNodes) => {
-      const parentNode = currentNodes.find(n => n.id === parentId);
-      if (!parentNode) return currentNodes;
+    setNodes((nds) => {
+      const parent = nds.find(n => n.id === parentId);
+      if (!parent) return nds;
       
-      setEdges((currentEdges) => {
-        // We use setEdges/setNodes callback to get latest state without dependency cycles
-        const siblings = currentEdges.filter(e => e.source === parentId);
+      const pos = { x: parent.position.x + 250, y: parent.position.y + (Math.random() * 100 - 50) };
+      
+      setTimeout(async () => {
+        const { data: node, error: nErr } = await supabase.from("brainstorm_nodes").insert({
+          user_id: user.id, mindmap_id: activeMap, title: "Nova ideia", position: pos, parent_id: parentId
+        }).select().single();
+
+        if (nErr || !node) return toast.error("Erro ao criar nó");
         
-        // Simple auto layout: place to the right, and space vertically based on siblings
-        const yOffset = (siblings.length * 80) - ((siblings.length > 0 ? 80 : 0) / 2);
-        const pos = { 
-          x: parentNode.position.x + 250, 
-          y: parentNode.position.y + yOffset 
-        };
-        
-        setTimeout(async () => {
-          const title = window.prompt("Nova ideia:");
-          if (!title || !title.trim()) return;
+        await supabase.from("brainstorm_connections").insert({
+          user_id: user.id, mindmap_id: activeMap, source_id: parentId, target_id: node.id
+        });
 
-          const { data: nodeData, error: nodeError } = await supabase.from("brainstorm_nodes").insert({
-            user_id: user.id, mindmap_id: activeMap, title: title.trim(), position: pos, parent_id: parentId
-          }).select().single();
-
-          if (nodeError || !nodeData) return toast.error("Falha ao criar nó");
-          
-          const { data: edgeData, error: edgeError } = await supabase.from("brainstorm_connections").insert({
-            user_id: user.id, mindmap_id: activeMap, source_id: parentId, target_id: nodeData.id
-          }).select().single();
-
-          setNodes((nds) => [...nds, {
-            id: nodeData.id, 
-            position: pos, 
-            type: "mindmapNode",
-            data: { 
-              label: nodeData.title, 
-              color: nodeData.color,
-              onEdit: handleEditNode,
-              onAddChild: handleAddChild
-            },
-          }]);
-
-          if (!edgeError && edgeData) {
-            setEdges((eds) => [...eds, { 
-              id: edgeData.id, 
-              source: parentId, 
-              target: nodeData.id,
-              type: 'bezier'
-            }]);
-          }
-        }, 10);
-        
-        return currentEdges;
-      });
-      return currentNodes;
+        setNodes((nds) => [...nds, {
+          id: node.id, position: pos, type: "mindmapNode",
+          data: { label: node.title, onEdit: handleEditNode, onAddChild: handleAddChild, onAddSibling: handleAddSibling, onDelete: handleDeleteNode }
+        }]);
+        setEdges((eds) => [...eds, { id: `e-${parentId}-${node.id}`, source: parentId, target: node.id, type: 'bezier' }]);
+      }, 10);
+      return nds;
     });
-  }, [user, activeMap, setNodes, setEdges, handleEditNode]);
+  }, [user, activeMap, handleEditNode, handleDeleteNode]);
 
-  // load nodes + edges of active map
+  const handleAddSibling = useCallback(async (nodeId: string) => {
+    if (!user || !activeMap) return;
+    const edge = edges.find(e => e.target === nodeId);
+    if (edge) {
+      void handleAddChild(edge.source);
+    } else {
+      // Main node sibling
+      void addNode("Nova ideia principal");
+    }
+  }, [user, activeMap, edges, handleAddChild]);
+
+  // load nodes + edges
   useEffect(() => {
     if (!activeMap) { setNodes([]); setEdges([]); setLoading(false); return; }
     setLoading(true);
@@ -138,31 +125,27 @@ function Inner() {
       ]);
       if (!active) return;
       
-      const n: Node[] = (nData || []).map((row) => {
-        const pos = (row.position as { x: number; y: number } | null) || { x: 0, y: 0 };
-        return {
-          id: row.id,
-          position: pos,
-          type: "mindmapNode",
-          data: { 
-            label: row.title,
-            color: row.color,
-            onEdit: handleEditNode,
-            onAddChild: handleAddChild
-          },
-        };
-      });
+      const n: Node[] = (nData || []).map((row) => ({
+        id: row.id,
+        position: (row.position as any) || { x: 0, y: 0 },
+        type: "mindmapNode",
+        data: { 
+          label: row.title, 
+          isMain: !row.parent_id,
+          onEdit: handleEditNode, 
+          onAddChild: handleAddChild, 
+          onAddSibling: handleAddSibling,
+          onDelete: handleDeleteNode
+        },
+      }));
       const e: Edge[] = (eData || []).map((row) => ({ 
-        id: row.id, 
-        source: row.source_id, 
-        target: row.target_id,
-        type: 'bezier'
+        id: row.id, source: row.source_id, target: row.target_id, type: 'bezier' 
       }));
       setNodes(n); setEdges(e);
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [activeMap, setNodes, setEdges, handleEditNode, handleAddChild]);
+  }, [activeMap, handleEditNode, handleAddChild, handleAddSibling, handleDeleteNode]);
 
   const persistNodePosition = useCallback(async (id: string, x: number, y: number) => {
     await supabase.from("brainstorm_nodes").update({ position: { x, y } }).eq("id", id);
@@ -195,26 +178,6 @@ function Inner() {
     setEdges((eds) => addEdge({ ...conn, id: data.id, type: 'bezier' } as Edge, eds));
   }, [user, activeMap, setEdges]);
 
-  const addNode = useCallback(async (title: string, atFlowPos?: { x: number; y: number }) => {
-    if (!user || !activeMap || !title.trim()) return;
-    const pos = atFlowPos || { x: Math.random() * 400, y: Math.random() * 300 };
-    const { data, error } = await supabase.from("brainstorm_nodes").insert({
-      user_id: user.id, mindmap_id: activeMap, title: title.trim(), position: pos,
-    }).select().single();
-    if (error || !data) return toast.error("Falha ao criar nó");
-    setNodes((nds) => [...nds, {
-      id: data.id, 
-      position: pos, 
-      type: "mindmapNode",
-      data: { 
-        label: data.title,
-        color: data.color,
-        onEdit: handleEditNode,
-        onAddChild: handleAddChild
-      },
-    }]);
-  }, [user, activeMap, setNodes, handleEditNode, handleAddChild]);
-
   const onPaneDoubleClick = useCallback((e: React.MouseEvent) => {
     const title = window.prompt("Ideia principal:");
     if (!title) return;
@@ -245,42 +208,55 @@ function Inner() {
     toast.success("Mapa excluído");
   };
 
+  const addNode = useCallback(async (title: string, atFlowPos?: { x: number; y: number }) => {
+    if (!user || !activeMap || !title.trim()) return;
+    const pos = atFlowPos || { x: 0, y: 0 };
+    const { data, error } = await supabase.from("brainstorm_nodes").insert({
+      user_id: user.id, mindmap_id: activeMap, title: title.trim(), position: pos,
+    }).select().single();
+    if (error || !data) return;
+    setNodes((nds) => [...nds, {
+      id: data.id, position: pos, type: "mindmapNode",
+      data: { label: data.title, isMain: true, onEdit: handleEditNode, onAddChild: handleAddChild, onAddSibling: handleAddSibling, onDelete: handleDeleteNode }
+    }]);
+  }, [user, activeMap, handleEditNode, handleAddChild, handleAddSibling, handleDeleteNode]);
+
   return (
-    <div className="space-y-4 h-full flex flex-col">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="space-y-4 h-[calc(100vh-120px)] flex flex-col bg-[#0a0a0a] -m-8 p-8 text-white">
+      <div className="flex items-center justify-between flex-wrap gap-3 z-10">
         <div className="flex items-center gap-3">
-          <Brain className="h-7 w-7" />
+          <Brain className="h-7 w-7 text-primary animate-pulse" />
           <Select value={activeMap ?? ""} onValueChange={setActiveMap}>
-            <SelectTrigger className="w-[240px] h-9 text-base font-semibold">
+            <SelectTrigger className="w-[240px] h-9 bg-white/5 border-white/10 text-white font-bold rounded-full">
               <SelectValue placeholder="Selecione um mapa" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-[#1A1A1A] border-white/10 text-white">
               {maps.map((m) => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}
             </SelectContent>
           </Select>
           {activeMap && (
-            <Button size="icon" variant="ghost" onClick={() => setConfirmDelMap(true)}>
+            <Button size="icon" variant="ghost" onClick={() => setConfirmDelMap(true)} className="hover:bg-destructive/20">
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setNewMap(true)}><Plus className="h-4 w-4 mr-2" />Novo mapa</Button>
-          <Button onClick={() => addNode(window.prompt("Ideia principal:") || "")} disabled={!activeMap}>
+          <Button variant="outline" onClick={() => setNewMap(true)} className="rounded-full border-white/10 hover:bg-white/5">
+            <Plus className="h-4 w-4 mr-2" />Novo mapa
+          </Button>
+          <Button onClick={() => addNode("Nova ideia principal")} disabled={!activeMap} className="rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20">
             <Plus className="h-4 w-4 mr-2" />Nova Ideia
           </Button>
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">Duplo-clique no canvas para criar ideia principal · duplo-clique na ideia para editar · use o botão (+) para ramificar</p>
-
-      <Card ref={wrapperRef} className="flex-1 min-h-[500px] overflow-hidden">
+      <div className="flex-1 relative rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
         {loading ? (
-          <div className="h-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          <div className="h-full flex items-center justify-center bg-[#0a0a0a]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : !activeMap ? (
-          <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-            <Brain className="h-10 w-10 mb-2 opacity-40" />
-            <p>Crie seu primeiro mapa mental para começar.</p>
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground bg-[#0a0a0a]">
+            <Brain className="h-16 w-16 mb-4 opacity-20" />
+            <p className="text-lg font-medium">Crie um mapa mental para explorar suas ideias.</p>
           </div>
         ) : (
           <ReactFlow
@@ -291,15 +267,22 @@ function Inner() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onDoubleClick={onPaneDoubleClick}
-            defaultEdgeOptions={{ type: "bezier", style: { strokeWidth: 2, stroke: "#9ca3af" } }}
+            defaultEdgeOptions={{ type: "bezier", style: { strokeWidth: 3, stroke: "#3b82f6", opacity: 0.6 } }}
             fitView
+            className="bg-[#0a0a0a]"
           >
-            <Background />
-            <Controls />
-            <MiniMap pannable zoomable />
+            <Background color="#333" gap={20} />
+            <Controls className="bg-[#1A1A1A] border-white/10 fill-white [&_button]:border-white/5" />
           </ReactFlow>
         )}
-      </Card>
+
+        {/* Shortcuts Legend Overlay */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-full flex gap-6 text-[10px] font-bold tracking-widest uppercase text-white/50 z-10">
+          <span className="flex items-center gap-2"><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white/80">TAB</kbd> Adicionar Filho</span>
+          <span className="flex items-center gap-2"><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white/80">ENTER</kbd> Adicionar Irmão</span>
+          <span className="flex items-center gap-2"><kbd className="bg-white/10 px-1.5 py-0.5 rounded text-white/80">DBL CLICK</kbd> Editar</span>
+        </div>
+      </div>
 
       <InputDialog open={newMap} title="Novo mapa mental" label="Nome do mapa"
         placeholder="Ex.: Estratégia Q1" onCancel={() => setNewMap(false)} onConfirm={(v) => { void createMap(v); }} />

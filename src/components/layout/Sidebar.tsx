@@ -48,11 +48,11 @@ function SortableArea({
         <span className="truncate">{area.name}</span>
       </Link>
       <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 pr-1">
-        <button onClick={() => onEdit(area)} className="p-1 rounded hover:bg-muted" aria-label="Editar">
+        <button type="button" onClick={() => onEdit(area)} className="p-1 rounded hover:bg-muted" aria-label="Editar">
           <Pencil className="h-3 w-3 text-muted-foreground" />
         </button>
         {!area.is_default && (
-          <button onClick={() => onDelete(area)} className="p-1 rounded hover:bg-destructive-light" aria-label="Excluir">
+          <button type="button" onClick={() => onDelete(area)} className="p-1 rounded hover:bg-destructive-light" aria-label="Excluir">
             <Trash2 className="h-3 w-3 text-destructive" />
           </button>
         )}
@@ -116,34 +116,68 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={areas.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-            <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.03 } } }} className="space-y-0.5">
-              {areas.map((a) => (
-                <motion.div key={a.id} variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0 } }}>
-                  <SortableArea
-                    area={a}
-                    isActive={pathname === a.route}
-                    onEdit={(area) => setEditing(area)}
-                    onDelete={(area) => setDeleting(area)}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          </SortableContext>
-        </DndContext>
+      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+        {/* Main Navigation */}
+        <div className="space-y-1">
+          <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2">Principal</p>
+          {[
+            { to: "/dashboard", label: "Dashboard", icon: "LayoutDashboard", color: "#6366f1" },
+            { to: "/kanban", label: "Planejamentos", icon: "Kanban", color: "#3b82f6" },
+            { to: "/calendario", label: "Agenda", icon: "Calendar", color: "#10b981" },
+            { to: "/brainstorm", label: "Brainstorm", icon: "Brain", color: "#a855f7" },
+            { to: "/lembretes", label: "Lembretes", icon: "StickyNote", color: "#f59e0b" },
+            { to: "/reunioes", label: "Reuniões", icon: "Video", color: "#ef4444" },
+          ].map((item) => {
+            const Icon = getIcon(item.icon);
+            const isActive = pathname === item.to;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 group",
+                  isActive 
+                    ? "bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]" 
+                    : "text-foreground/70 hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-white" : "")} style={{ color: isActive ? undefined : item.color }} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setCreating(true)}
-          className="w-full mt-3 justify-start text-muted-foreground hover:text-primary"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar área
-        </Button>
+        {/* Areas Navigation */}
+        <div className="space-y-1 pt-4 border-t border-muted/50">
+          <div className="flex items-center justify-between px-3 mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Áreas de Foco</p>
+            <button 
+              type="button"
+              onClick={() => setCreating(true)}
+              className="p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={areas.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+              <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.03 } } }} className="space-y-0.5">
+                {areas.map((a) => (
+                  <motion.div key={a.id} variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0 } }}>
+                    <SortableArea
+                      area={a}
+                      isActive={pathname === a.route}
+                      onEdit={(area) => setEditing(area)}
+                      onDelete={(area) => setDeleting(area)}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </SortableContext>
+          </DndContext>
+        </div>
       </nav>
 
       <div className="border-t px-3 py-3 flex items-center gap-2.5">

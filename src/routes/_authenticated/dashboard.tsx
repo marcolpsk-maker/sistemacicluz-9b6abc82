@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CheckCircle2, Bell, Video, Clock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from "recharts";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({ component: DashboardPage });
 
@@ -59,25 +61,53 @@ function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1>Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Visão geral das suas atividades</p>
-      </div>
+    <div className="space-y-8">
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }} 
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col gap-1"
+      >
+        <h1 className="text-5xl font-extrabold tracking-tighter text-[#172B4D] dark:text-white">
+          {(() => {
+            const hour = new Date().getHours();
+            if (hour < 12) return "Bom dia";
+            if (hour < 18) return "Boa tarde";
+            return "Boa noite";
+          })()}, {(user?.user_metadata?.name as string | undefined)?.split(" ")[0] ?? "Usuário"}!
+        </h1>
+        <p className="text-muted-foreground text-xl font-medium opacity-80">Aqui está o pulso estratégico do seu CICLUZ hoje.</p>
+      </motion.div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div 
+        initial="hidden"
+        animate="show"
+        variants={{
+          show: { transition: { staggerChildren: 0.1 } }
+        }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-6"
+      >
         {cards.map(c => (
-          <Card key={c.label} className="p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{c.label}</p>
-                <p className="text-3xl font-bold mt-1">{c.value}</p>
+          <motion.div
+            key={c.label}
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              show: { opacity: 1, y: 0 }
+            }}
+          >
+            <Card className="p-6 hover:shadow-lg transition-shadow border-black/5 bg-gradient-to-br from-card to-muted/20">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+                  <p className="text-4xl font-bold mt-2 tracking-tight">{c.value}</p>
+                </div>
+                <div className={cn("p-2 rounded-lg bg-white/50 shadow-sm", c.color)}>
+                  <c.icon className="h-6 w-6" />
+                </div>
               </div>
-              <c.icon className={`h-5 w-5 ${c.color}`} />
-            </div>
-          </Card>
+            </Card>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Card className="p-4">

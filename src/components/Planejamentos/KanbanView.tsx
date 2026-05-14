@@ -242,28 +242,28 @@ function Column({ category, cards, onAddCard, onEditCard, onEditCat, onDeleteCar
   const { setNodeRef, isOver } = useSortable({ id: category.id });
   return (
     <div ref={setNodeRef}
-      className={cn("w-80 shrink-0 bg-muted/40 rounded-lg p-3 flex flex-col max-h-full",
-        isOver && "ring-2 ring-primary")}>
-      <div className="flex items-center justify-between mb-3 shrink-0">
+      className={cn("w-80 shrink-0 bg-[#F1F2F4] dark:bg-muted/20 rounded-xl p-3 flex flex-col max-h-full transition-all duration-200 shadow-sm",
+        isOver && "ring-2 ring-primary bg-primary/5")}>
+      <div className="flex items-center justify-between mb-4 px-1 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: category.color || "#4F46E5" }} />
-          <h3 className="text-sm font-semibold">{category.name}</h3>
-          <span className="text-xs text-muted-foreground">{cards.length}</span>
+          <div className="h-2.5 w-2.5 rounded-full shadow-sm" style={{ background: category.color || "#4F46E5" }} />
+          <h3 className="text-xs font-bold text-[#44546F] dark:text-foreground tracking-tight uppercase">{category.name}</h3>
+          <span className="text-[10px] bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-full text-muted-foreground font-bold">{cards.length}</span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-7 w-7"><MoreVertical className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-black/5 rounded-md"><MoreVertical className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEditCat}><Pencil className="h-4 w-4 mr-2" />Editar coluna</DropdownMenuItem>
-            <DropdownMenuItem onClick={onDeleteCat} className="text-destructive">
+          <DropdownMenuContent align="end" className="backdrop-blur-xl bg-white/90 dark:bg-black/90 border-none shadow-2xl">
+            <DropdownMenuItem onClick={onEditCat} className="rounded-md font-medium"><Pencil className="h-4 w-4 mr-2" />Editar coluna</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDeleteCat} className="text-destructive rounded-md font-medium">
               <Trash2 className="h-4 w-4 mr-2" />Excluir coluna
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 flex-1 min-h-[40px] overflow-y-auto pr-1">
+        <div className="space-y-2 flex-1 min-h-[40px] overflow-y-auto pr-1 custom-scrollbar">
           {cards.map((c) => (
             <SortableCard key={c.id} card={c}
               onClick={() => onEditCard(c)}
@@ -271,8 +271,13 @@ function Column({ category, cards, onAddCard, onEditCard, onEditCat, onDeleteCar
           ))}
         </div>
       </SortableContext>
-      <Button variant="ghost" size="sm" className="mt-2 justify-start shrink-0" onClick={onAddCard}>
-        <Plus className="h-4 w-4 mr-2" />Adicionar card
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="mt-3 justify-start shrink-0 text-[#44546F] hover:bg-black/10 hover:text-primary transition-all font-bold rounded-lg h-9" 
+        onClick={onAddCard}
+      >
+        <Plus className="h-4 w-4 mr-2" strokeWidth={3} /> Nova Meta
       </Button>
     </div>
   );
@@ -297,30 +302,44 @@ function CardItem({ card, onClick, onDelete, dragging }: {
   const tags = (card.tags as string[] | null) || [];
   return (
     <Card
-      className={cn("p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow border-l-4",
-        dragging && "rotate-2 shadow-lg")}
-      style={{ borderLeftColor: card.color || "transparent" }}>
+      className={cn(
+        "p-3.5 cursor-grab active:cursor-grabbing hover:shadow-[0_8px_16px_rgba(0,0,0,0.1)] transition-all duration-300 border-none bg-white dark:bg-card shadow-[0_1px_3px_rgba(0,0,0,0.12)] group rounded-lg",
+        dragging && "rotate-2 shadow-2xl scale-105 ring-2 ring-primary/20"
+      )}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between gap-2">
-        <p className="font-medium text-sm flex-1" onClick={onClick}>{card.title}</p>
+        <p className="font-semibold text-sm flex-1 text-[#172B4D] dark:text-foreground leading-tight">{card.title}</p>
         {onDelete && (
-          <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="text-muted-foreground hover:text-destructive transition-colors">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
-      {card.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{card.description}</p>}
-      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-        <Badge variant="secondary" className={cn("text-[10px] px-1.5 py-0", PRIO_CLASS[prio])}>
-          {PRIO_LABEL[prio]}
-        </Badge>
+      
+      {card.description && (
+        <p className="text-[11px] text-[#44546F] dark:text-muted-foreground mt-2 line-clamp-2 leading-normal">
+          {card.description}
+        </p>
+      )}
+
+      <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+        <div className={cn("h-1 w-8 rounded-full mb-1", 
+          prio === "high" ? "bg-red-500" : prio === "medium" ? "bg-amber-500" : "bg-blue-500"
+        )} />
+        <div className="w-full" />
         {tags.map((t) => (
-          <Badge key={t} variant="outline" className="text-[10px] px-1.5 py-0">{t}</Badge>
+          <Badge key={t} variant="secondary" className="text-[9px] px-1.5 py-0 bg-[#F1F2F4] text-[#44546F] hover:bg-[#E2E4E9] border-none font-bold uppercase">
+            {t}
+          </Badge>
         ))}
         {card.due_date && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto">
+          <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1 ml-auto">
             <CalIcon className="h-3 w-3" />
-            {format(new Date(card.due_date), "dd MMM", { locale: ptBR })}
+            {format(new Date(card.due_date), "dd/MM", { locale: ptBR })}
           </span>
         )}
       </div>

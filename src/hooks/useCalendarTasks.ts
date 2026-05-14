@@ -96,5 +96,12 @@ export function useCalendarTasks(userId: string | undefined, date: Date | null) 
     }
   };
 
-  return { tasks, loading, addTask, updateTaskStatus, deleteTask };
+  const updateTaskTitle = async (taskId: string, newTitle: string) => {
+    const { error } = await supabase.from("lembretes").update({ title: newTitle }).eq("id", taskId);
+    if (error) {
+      toast.error("Erro ao atualizar título");
+    }
+  };
+
+  return { tasks, loading, addTask, updateTaskStatus, deleteTask, updateTaskTitle };
 }

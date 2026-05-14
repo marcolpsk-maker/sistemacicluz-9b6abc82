@@ -166,17 +166,29 @@ function ReunioesPage() {
           <p className="text-muted-foreground">Nenhuma reunião agendada.</p>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {upcoming.length > 0 && (
-            <section className="space-y-2">
-              <h2 className="text-sm uppercase tracking-wide text-muted-foreground">Próximas</h2>
-              {upcoming.map((r) => <ReuniaoCard key={r.id} r={r} onDelete={() => setConfirmId(r.id)} />)}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Próximas Reuniões</h2>
+              </div>
+              <motion.div 
+                initial="hidden" animate="show"
+                variants={{ show: { transition: { staggerChildren: 0.1 } } }}
+                className="grid gap-4"
+              >
+                {upcoming.map((r) => <ReuniaoCard key={r.id} r={r} onDelete={() => setConfirmId(r.id)} />)}
+              </motion.div>
             </section>
           )}
+          
           {past.length > 0 && (
-            <section className="space-y-2 opacity-70">
-              <h2 className="text-sm uppercase tracking-wide text-muted-foreground">Passadas</h2>
-              {past.map((r) => <ReuniaoCard key={r.id} r={r} onDelete={() => setConfirmId(r.id)} />)}
+            <section className="space-y-4 opacity-75 grayscale-[0.5]">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground px-1">Passadas</h2>
+              <div className="grid gap-3">
+                {past.map((r) => <ReuniaoCard key={r.id} r={r} onDelete={() => setConfirmId(r.id)} />)}
+              </div>
             </section>
           )}
         </div>
@@ -189,26 +201,83 @@ function ReunioesPage() {
 }
 
 function ReuniaoCard({ r, onDelete }: { r: Reuniao; onDelete: () => void }) {
+  const isPast = new Date(`${r.date}T${r.time}`) < new Date();
+  const meetingDate = new Date(`${r.date}T${r.time}`);
+  
+  // Extract link if it's in the description
+  const link = r.description?.match(/https?:\/\/[^\s]+/)?.[0];
+  const cleanDescription = r.description?.replace(/https?:\/\/[^\s]+/, "").trim();
+
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="font-medium">{r.title}</p>
-          {r.description && <p className="text-sm text-muted-foreground mt-1">{r.description}</p>}
-          <p className="text-xs text-muted-foreground mt-2">
-            {format(new Date(`${r.date}T${r.time}`), "PPP 'às' HH:mm", { locale: ptBR })}
-          </p>
-          {r.participants && r.participants.length > 0 && (
-            <div className="flex items-center gap-1 mt-2 flex-wrap">
-              <Users className="h-3 w-3 text-muted-foreground" />
-              {r.participants.map((p, i) => <Badge key={i} variant="secondary" className="text-xs">{p}</Badge>)}
+    <motion.div
+      variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}
+      whileHover={{ scale: 1.01 }}
+      className="group"
+    >
+      <Card className={cn(
+        "relative overflow-hidden border-l-4 transition-all duration-300",
+        isPast ? "border-l-muted" : "border-l-primary shadow-sm hover:shadow-md"
+      )}>
+        <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex gap-5 items-start">
+            <div className={cn(
+              "flex flex-col items-center justify-center min-w-[64px] h-16 rounded-xl border-2 font-bold",
+              isPast ? "bg-muted/50 border-muted text-muted-foreground" : "bg-primary/5 border-primary/20 text-primary"
+            )}>
+              <span className="text-xs uppercase">{format(meetingDate, "MMM", { locale: ptBR })}</span>
+              <span className="text-xl">{format(meetingDate, "dd")}</span>
             </div>
-          )}
+            
+            <div className="space-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-bold text-lg leading-none">{r.title}</h3>
+                {isPast ? (
+                  <Badge variant="secondary" className="text-[10px] uppercase font-bold">Encerrada</Badge>
+                ) : (
+                  <Badge className="bg-emerald-500 text-white text-[10px] uppercase font-bold">Confirmada</Badge>
+                )}
+              </div>
+              
+              {cleanDescription && (
+                <p className="text-sm text-muted-foreground line-clamp-1">{cleanDescription}</p>
+              )}
+              
+              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                <div className="flex items-center gap-1.5">
+                  <Video className="h-3.5 w-3.5" />
+                  <span>{format(meetingDate, "HH:mm")}</span>
+                </div>
+                {r.participants && r.participants.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" />
+                    <span>{r.participants.length} participante{r.participants.length !== 1 && "s"}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 ml-auto md:ml-0">
+            {link && !isPast && (
+              <Button asChild size="sm" className="rounded-full shadow-lg shadow-primary/20">
+                <a href={link} target="_blank" rel="noopener noreferrer">
+                  Entrar na Reunião
+                </a>
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onDelete} className="text-muted-foreground hover:text-destructive transition-colors">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="text-destructive">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </Card>
+        
+        {/* Progress bar decoration for upcoming */}
+        {!isPast && (
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary/10">
+            <div className="h-full bg-primary/40 w-1/3" />
+          </div>
+        )}
+      </Card>
+    </motion.div>
   );
 }

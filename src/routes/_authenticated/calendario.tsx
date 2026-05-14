@@ -100,43 +100,52 @@ function CalendarPage() {
     setOpen(false);
   };
 
+  const months = useMemo(() => {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="flex items-center gap-2"><CalIcon className="h-7 w-7" /> Calendário</h1>
-          <p className="text-muted-foreground text-sm mt-1">Eventos, reuniões e tarefas diárias</p>
+    <div className="space-y-8 pb-10">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-4xl font-extrabold tracking-tight text-[#172B4D] dark:text-foreground flex items-center gap-3">
+            <CalIcon className="h-9 w-9 text-primary" strokeWidth={2.5} /> Agenda Global
+          </h1>
+          <p className="text-muted-foreground text-base font-medium opacity-80">Gerencie seu cronograma com clareza e elegância.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCursor(subMonths(cursor, 1))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="font-semibold w-40 text-center capitalize">
-            {format(cursor, "MMMM yyyy", { locale: ptBR })}
-          </span>
-          <Button variant="outline" size="icon" onClick={() => setCursor(addMonths(cursor, 1))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" onClick={() => setCursor(new Date())}>Hoje</Button>
+        <div className="flex items-center gap-3">
+          <div className="flex bg-muted rounded-lg p-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCursor(subMonths(cursor, 1))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" className="px-3 font-semibold" onClick={() => setCursor(new Date())}>Hoje</Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCursor(addMonths(cursor, 1))}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />Evento</Button>
+              <Button className="shadow-lg shadow-primary/20"><Plus className="h-4 w-4 mr-2" />Novo Evento</Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Novo evento</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div><Label>Título *</Label>
-                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Data *</Label>
-                    <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
-                  <div><Label>Hora</Label>
-                    <Input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} /></div>
+            <DialogContent className="rounded-2xl backdrop-blur-xl bg-white/90 dark:bg-card/90">
+              <DialogHeader><DialogTitle>Criar Novo Evento</DialogTitle></DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Título do Compromisso</Label>
+                  <Input placeholder="Ex: Reunião de Alinhamento" className="rounded-xl border-none bg-muted/50 focus:bg-white transition-all h-11" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Data</Label>
+                    <Input type="date" className="rounded-xl border-none bg-muted/50 focus:bg-white transition-all h-11" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Horário</Label>
+                    <Input type="time" className="rounded-xl border-none bg-muted/50 focus:bg-white transition-all h-11" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={createEvent} disabled={!form.title.trim() || !form.date}>Criar</Button>
+                <Button variant="ghost" className="rounded-xl" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button className="rounded-xl px-8" onClick={createEvent} disabled={!form.title.trim() || !form.date}>Agendar</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -144,54 +153,91 @@ function CalendarPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       ) : (
-        <Card className="p-2 md:p-4">
-          <div className="grid grid-cols-7 gap-px text-xs font-semibold text-muted-foreground mb-1">
-            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-              <div key={d} className="text-center py-2">{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-px bg-border rounded overflow-hidden">
-            {grid.map((day) => {
-              const dayItems = itemsByDay(day);
-              const inMonth = isSameMonth(day, cursor);
-              const today = isSameDay(day, new Date());
-              return (
-                <button key={day.toISOString()}
-                  onClick={() => setKanbanDate(day)}
-                  className={cn(
-                    "bg-card min-h-[100px] p-1.5 text-left transition-colors hover:bg-muted/40",
-                    !inMonth && "opacity-40",
-                  )}>
-                  <div className={cn("text-xs font-medium mb-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full",
-                    today && "bg-primary text-primary-foreground")}>
-                    {format(day, "d")}
-                  </div>
-                  <div className="space-y-1">
-                    {dayItems.slice(0, 3).map((it) => (
-                      <div key={`${it.type}-${it.id}`}
-                        className="text-[10px] truncate px-1 py-0.5 rounded text-white"
-                        style={{ background: it.color }}>
-                        {it.title}
-                      </div>
-                    ))}
-                    {dayItems.length > 3 && (
-                      <div className="text-[10px] text-muted-foreground">+{dayItems.length - 3} itens</div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {months.map((month) => (
+            <MonthCard 
+              key={month.toISOString()} 
+              month={month} 
+              items={items} 
+              onSelectDate={setKanbanDate} 
+            />
+          ))}
+        </div>
       )}
 
-      {/* Kanban Modal for selected date */}
       <DateKanbanModal 
         date={kanbanDate} 
         onClose={() => setKanbanDate(null)} 
       />
     </div>
+  );
+}
+
+function MonthCard({ month, items, onSelectDate }: { month: Date; items: Item[]; onSelectDate: (d: Date) => void }) {
+  const grid = useMemo(() => {
+    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
+    const end = endOfWeek(endOfMonth(month), { weekStartsOn: 0 });
+    const days: Date[] = [];
+    let d = start;
+    while (d <= end) { days.push(d); d = addDays(d, 1); }
+    return days;
+  }, [month]);
+
+  const itemsByDay = (day: Date) => items.filter((i) => isSameDay(i.date, day));
+
+  return (
+    <Card className="p-5 border-none shadow-sm bg-white/50 dark:bg-card/50 backdrop-blur-sm rounded-2xl flex flex-col hover:shadow-md transition-shadow">
+      <h3 className="text-lg font-bold capitalize mb-4 text-[#172B4D] dark:text-foreground">
+        {format(month, "MMMM yyyy", { locale: ptBR })}
+      </h3>
+      <div className="grid grid-cols-7 gap-y-2 mb-2 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest text-center">
+        {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <div key={i}>{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-px">
+        {grid.map((day) => {
+          const dayItems = itemsByDay(day);
+          const inMonth = isSameMonth(day, month);
+          const today = isSameDay(day, new Date());
+          
+          return (
+            <button
+              key={day.toISOString()}
+              onClick={() => onSelectDate(day)}
+              className={cn(
+                "h-10 w-full flex flex-col items-center justify-center relative rounded-lg transition-all group",
+                !inMonth && "opacity-10",
+                inMonth && "hover:bg-primary/5"
+              )}
+            >
+              <span className={cn(
+                "text-xs font-semibold z-10",
+                today && "text-primary",
+                !inMonth && "text-muted-foreground"
+              )}>
+                {format(day, "d")}
+              </span>
+              
+              {inMonth && dayItems.length > 0 && (
+                <div className="flex gap-0.5 mt-0.5">
+                  {dayItems.slice(0, 3).map((it, idx) => (
+                    <div 
+                      key={idx} 
+                      className="h-1 w-1 rounded-full shadow-sm" 
+                      style={{ background: it.color }} 
+                    />
+                  ))}
+                </div>
+              )}
+              
+              {today && (
+                <div className="absolute inset-0 bg-primary/10 rounded-lg border border-primary/20" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
   );
 }

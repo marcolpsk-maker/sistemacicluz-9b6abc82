@@ -40,17 +40,40 @@ export function useAreas(userId: string | undefined) {
   const createArea = async (input: { name: string; icon: string; color: string; route?: string }) => {
     if (!userId) return;
     const nextOrder = areas.length + 1;
-    const route = input.route ?? `/area/${input.name.toLowerCase().replace(/\s+/g, "-")}`;
-    const { error } = await supabase.from("areas").insert({
+    const name = input.name.trim();
+    const route = input.route ?? `/area/${name.toLowerCase().replace(/\s+/g, "-")}`;
+    
+    // 1. Create the Area
+    const { data: areaData, error: areaError } = await supabase.from("areas").insert({
       user_id: userId,
-      name: input.name,
+      name,
       icon: input.icon,
       color: input.color,
       route,
       order: nextOrder,
-    });
-    if (error) { toast.error("Falha ao criar área"); throw error; }
-    toast.success("Área criada");
+    }).select().single();
+    
+    if (areaError) { toast.error("Falha ao criar área"); throw areaError; }
+
+    // 2. Create the associated Kanban Board
+    const { data: boardData, error: boardError } = await supabase.from("kanban_boards").insert({
+      user_id: userId,
+      name: name,
+      color: input.color,
+      order: 0,
+    }).select().single();
+
+    if (!boardError && boardData) {
+      // 3. Create default columns (Trello style from reference)
+      await supabase.from("kanban_categories").insert([
+        { user_id: userId, board_id: boardData.id, name: "A Fazer", color: "#94a3b8", order: 1 },
+        { user_id: userId, board_id: boardData.id, name: "Em Andamento", color: "#3b82f6", order: 2 },
+        { user_id: userId, board_id: boardData.id, name: "Alteração", color: "#f59e0b", order: 3 },
+        { user_id: userId, board_id: boardData.id, name: "Finalizado", color: "#10b981", order: 4 },
+      ]);
+    }
+
+    toast.success("Área e quadro criados");
   };
 
   const updateArea = async (id: string, patch: Partial<Pick<Area, "name" | "icon" | "color">>) => {

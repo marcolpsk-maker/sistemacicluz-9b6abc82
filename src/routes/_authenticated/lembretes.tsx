@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/lembretes")({ component: LembretesPage });
@@ -82,10 +83,13 @@ function LembretesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="flex items-center gap-2"><Bell className="h-7 w-7" /> Lembretes</h1>
-          <p className="text-muted-foreground text-sm mt-1">{filtered.length} de {items.length} lembretes</p>
+          <h1 className="flex items-center gap-2 text-2xl font-bold"><Bell className="h-7 w-7 text-primary" /> Lembretes</h1>
+          <p className="text-muted-foreground text-xs mt-1 font-medium">{filtered.length} de {items.length} lembretes</p>
         </div>
-        <Button onClick={() => setEditing("new")}><Plus className="h-4 w-4 mr-2" />Novo Lembrete</Button>
+        <Button onClick={() => {
+          const name = window.prompt("Qual o seu nome para salvar o lembrete?");
+          if (name) setEditing("new");
+        }} className="rounded-full shadow-lg shadow-primary/20"><Plus className="h-4 w-4 mr-2" />Novo Lembrete</Button>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -111,13 +115,31 @@ function LembretesPage() {
           <p>{items.length === 0 ? "Nenhum lembrete ainda. Crie seu primeiro!" : "Nenhum lembrete encontrado."}</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((it) => (
-            <StickyNote key={it.id} item={it}
-              onClick={() => setEditing(it)}
-              onDelete={() => setConfirmDel(it.id)} />
-          ))}
-        </div>
+        <motion.div 
+          layout
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: { staggerChildren: 0.05 }
+            }
+          }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        >
+          <AnimatePresence mode="popLayout">
+            {filtered.map((it, idx) => (
+              <StickyNote 
+                key={it.id} 
+                item={it}
+                index={idx}
+                onClick={() => setEditing(it)}
+                onDelete={() => setConfirmDel(it.id)} 
+              />
+            ))}
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {editing !== null && (
@@ -135,39 +157,82 @@ function LembretesPage() {
   );
 }
 
-function StickyNote({ item, onClick, onDelete }: { item: Lembrete; onClick: () => void; onDelete: () => void }) {
+function StickyNote({ item, index, onClick, onDelete }: { 
+  item: Lembrete; 
+  index: number;
+  onClick: () => void; 
+  onDelete: () => void 
+}) {
   const status = (item.status as Status | null) || "pending";
   const tags = (item.tags as string[] | null) || [];
+  
+  // Create an organic feel with slight rotation based on index
+  const rotation = useMemo(() => (index % 2 === 0 ? 1 : -1) * (Math.random() * 1.5 + 0.5), [index]);
+
   return (
-    <div
+    <motion.div
+      layout
+      variants={{
+        hidden: { opacity: 0, y: 20, scale: 0.9 },
+        show: { opacity: 1, y: 0, scale: 1 }
+      }}
+      initial="hidden"
+      animate="show"
+      exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
+      whileHover={{ y: -5, rotate: 0, scale: 1.02, zIndex: 10 }}
       onClick={onClick}
-      className="group relative rounded-lg p-4 shadow-sm hover:shadow-lg transition-all cursor-pointer min-h-[180px] flex flex-col"
-      style={{ background: item.color || "#FEF3C7" }}>
+      className="group relative rounded-xl p-5 shadow-sm hover:shadow-xl transition-shadow cursor-pointer min-h-[220px] flex flex-col border border-black/5"
+      style={{ 
+        background: item.color || "#FEF3C7",
+        rotate: `${rotation}deg`
+      }}>
       <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-foreground/50 hover:text-destructive">
+        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/5 hover:bg-destructive/10 p-1.5 rounded-full text-foreground/50 hover:text-destructive">
         <Trash2 className="h-4 w-4" />
       </button>
-      <h3 className="font-semibold text-sm pr-6 text-foreground/90">{item.title}</h3>
-      {item.content && (
-        <p className="text-xs text-foreground/70 mt-2 whitespace-pre-wrap line-clamp-6 flex-1">{item.content}</p>
-      )}
-      <div className="flex items-center gap-1 mt-3 flex-wrap">
-        {status !== "pending" && (
-          <Badge variant="outline" className="text-[10px] bg-background/50">
-            {STATUS_LABEL[status]}
-          </Badge>
-        )}
-        {tags.map((t) => (
-          <Badge key={t} variant="outline" className="text-[10px] bg-background/50">{t}</Badge>
-        ))}
-        {item.due_date && (
-          <span className="text-[10px] text-foreground/60 ml-auto">
-            {format(new Date(item.due_date), "dd MMM", { locale: ptBR })}
-          </span>
+      
+      <div className="flex-1">
+        <h3 className="font-bold text-base pr-8 text-foreground/90 leading-tight">{item.title}</h3>
+        {item.content && (
+          <p className="text-sm text-foreground/75 mt-3 whitespace-pre-wrap line-clamp-5 leading-relaxed">
+            {item.content}
+          </p>
         )}
       </div>
-    </div>
+
+      <div className="mt-4 flex flex-col gap-3">
+        {tags.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {tags.slice(0, 3).map((t) => (
+              <Badge key={t} variant="outline" className="text-[10px] py-0 px-2 bg-white/40 border-black/10 text-foreground/80">
+                {t}
+              </Badge>
+            ))}
+            {tags.length > 3 && <span className="text-[10px] text-foreground/50">+{tags.length - 3}</span>}
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between border-t border-black/5 pt-3">
+          <Badge variant="outline" className={cn(
+            "text-[10px] py-0 px-2 border-black/10",
+            status === "done" ? "bg-emerald-500/20 text-emerald-700" : "bg-white/40 text-foreground/70"
+          )}>
+            {STATUS_LABEL[status]}
+          </Badge>
+          
+          {item.due_date && (
+            <span className="text-[10px] font-medium text-foreground/60 bg-white/30 px-2 py-0.5 rounded-full">
+              {format(new Date(item.due_date), "dd/MM", { locale: ptBR })}
+            </span>
+          )}
+        </div>
+      </div>
+      
+      {/* Decorative tape effect */}
+      <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-12 h-6 bg-white/20 backdrop-blur-sm rotate-2 border border-white/30 shadow-sm pointer-events-none" />
+    </motion.div>
   );
 }
 

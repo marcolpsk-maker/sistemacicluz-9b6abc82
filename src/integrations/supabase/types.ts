@@ -322,29 +322,44 @@ export type Database = {
       }
       lembretes: {
         Row: {
+          color: string | null
           completed: boolean | null
+          content: string | null
           created_at: string | null
           description: string | null
           due_date: string | null
           id: string
+          order: number | null
+          status: string | null
+          tags: string[] | null
           title: string
           user_id: string
         }
         Insert: {
+          color?: string | null
           completed?: boolean | null
+          content?: string | null
           created_at?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          order?: number | null
+          status?: string | null
+          tags?: string[] | null
           title: string
           user_id: string
         }
         Update: {
+          color?: string | null
           completed?: boolean | null
+          content?: string | null
           created_at?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          order?: number | null
+          status?: string | null
+          tags?: string[] | null
           title?: string
           user_id?: string
         }

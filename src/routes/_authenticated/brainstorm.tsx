@@ -69,12 +69,55 @@ function Inner() {
       : n));
   }, [setNodes]);
 
+  const undoStackRef = useRef<Array<() => Promise<void>>>([]);
+
   const deleteNode = useCallback(async (id: string) => {
-    await supabase.from("brainstorm_connections").delete().or(`source_id.eq.${id},target_id.eq.${id}`);
-    await supabase.from("brainstorm_nodes").delete().eq("id", id);
-    setNodes((nds) => nds.filter((n) => n.id !== id));
-    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
-    if (selectedRef.current === id) setSelectedId(null);
+    const u = userRef.current; const m = mapRef.current;
+    const node = nodesRef.current.find((n) => n.id === id);
+    const relatedEdges = edgesRef.current.filter((e) => e.source === id || e.target === id);
+    // capture full subtree (descendants) for proper restore
+    const collectDescendants = (rootId: string): string[] => {
+      const out: string[] = [];
+      const walk = (pid: string) => {
+        for (const e of edgesRef.current) {
+          if (e.source === pid) { out.push(e.target); walk(e.target); }
+        }
+      };
+      walk(rootId);
+      return out;
+    };
+    const descIds = collectDescendants(id);
+    const allIds = [id, ...descIds];
+    const allNodes = nodesRef.current.filter((n) => allIds.includes(n.id));
+    const allEdges = edgesRef.current.filter((e) => allIds.includes(e.source) || allIds.includes(e.target));
+
+    await supabase.from("brainstorm_connections").delete().in("source_id", allIds);
+    await supabase.from("brainstorm_connections").delete().in("target_id", allIds);
+    await supabase.from("brainstorm_nodes").delete().in("id", allIds);
+    setNodes((nds) => nds.filter((n) => !allIds.includes(n.id)));
+    setEdges((eds) => eds.filter((e) => !allIds.includes(e.source) && !allIds.includes(e.target)));
+    if (allIds.includes(selectedRef.current ?? "")) setSelectedId(null);
+
+    if (u && m && node) {
+      undoStackRef.current.push(async () => {
+        // restore nodes
+        await supabase.from("brainstorm_nodes").insert(
+          allNodes.map((n) => ({
+            id: n.id, user_id: u.id, mindmap_id: m,
+            title: (n.data as MindmapNodeData).label,
+            position: n.position,
+            parent_id: relatedEdges.find((e) => e.target === n.id)?.source ?? null,
+          })),
+        );
+        await supabase.from("brainstorm_connections").insert(
+          allEdges.map((e) => ({ id: e.id, user_id: u.id, mindmap_id: m, source_id: e.source, target_id: e.target })),
+        );
+        setNodes((nds) => [...nds, ...allNodes]);
+        setEdges((eds) => [...eds, ...allEdges]);
+        toast.success("Restaurado");
+      });
+      if (undoStackRef.current.length > 20) undoStackRef.current.shift();
+    }
   }, [setNodes, setEdges]);
 
   const addChildRef = useRef<(parentId: string) => Promise<void>>(async () => {});

@@ -101,6 +101,9 @@ function CalendarPage() {
   };
 
   const months = useMemo(() => {
+    return [0, 1, 2, 3].map((i) => addMonths(cursor, i));
+  }, [cursor]);
+
   return (
     <div className="space-y-8 pb-10">
       <div className="flex items-center justify-between flex-wrap gap-4">

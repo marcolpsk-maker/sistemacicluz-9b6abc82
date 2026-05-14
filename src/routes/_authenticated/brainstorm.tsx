@@ -178,6 +178,19 @@ function Inner() {
     setEdges((eds) => addEdge({ ...conn, id: data.id, type: 'bezier' } as Edge, eds));
   }, [user, activeMap, setEdges]);
 
+  const addNode = useCallback(async (title: string, atFlowPos?: { x: number; y: number }) => {
+    if (!user || !activeMap || !title.trim()) return;
+    const pos = atFlowPos || { x: 0, y: 0 };
+    const { data, error } = await supabase.from("brainstorm_nodes").insert({
+      user_id: user.id, mindmap_id: activeMap, title: title.trim(), position: pos,
+    }).select().single();
+    if (error || !data) return;
+    setNodes((nds) => [...nds, {
+      id: data.id, position: pos, type: "mindmapNode",
+      data: { label: data.title, isMain: true, onEdit: handleEditNode, onAddChild: handleAddChild, onAddSibling: handleAddSibling, onDelete: handleDeleteNode }
+    }]);
+  }, [user, activeMap, handleEditNode, handleAddChild, handleAddSibling, handleDeleteNode]);
+
   const onPaneDoubleClick = useCallback((e: React.MouseEvent) => {
     const title = window.prompt("Ideia principal:");
     if (!title) return;
@@ -208,18 +221,6 @@ function Inner() {
     toast.success("Mapa excluído");
   };
 
-  const addNode = useCallback(async (title: string, atFlowPos?: { x: number; y: number }) => {
-    if (!user || !activeMap || !title.trim()) return;
-    const pos = atFlowPos || { x: 0, y: 0 };
-    const { data, error } = await supabase.from("brainstorm_nodes").insert({
-      user_id: user.id, mindmap_id: activeMap, title: title.trim(), position: pos,
-    }).select().single();
-    if (error || !data) return;
-    setNodes((nds) => [...nds, {
-      id: data.id, position: pos, type: "mindmapNode",
-      data: { label: data.title, isMain: true, onEdit: handleEditNode, onAddChild: handleAddChild, onAddSibling: handleAddSibling, onDelete: handleDeleteNode }
-    }]);
-  }, [user, activeMap, handleEditNode, handleAddChild, handleAddSibling, handleDeleteNode]);
 
   return (
     <div className="space-y-4 h-[calc(100vh-120px)] flex flex-col bg-[#0a0a0a] -m-8 p-8 text-white">

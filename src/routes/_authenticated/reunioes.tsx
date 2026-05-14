@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/reunioes")({ component: ReunioesPage });
 

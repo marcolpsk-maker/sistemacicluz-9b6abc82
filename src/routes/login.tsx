@@ -28,7 +28,6 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 function LoginPage() {
   const { user, signIn, signUp, loading } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {

@@ -108,20 +108,62 @@ export function KanbanView({ board, onDelete }: { board: KanbanBoard; onDelete: 
 
   const activeCard = activeId ? cards.find((c) => c.id === activeId) : null;
 
+  // Resolve drop target -> { categoryId, index }
+  const resolveTarget = (overId: string) => {
+    const overCard = cards.find((c) => c.id === overId);
+    if (overCard) {
+      const list = cards.filter((c) => c.category_id === overCard.category_id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const idx = list.findIndex((c) => c.id === overCard.id);
+      return { categoryId: overCard.category_id, index: idx };
+    }
+    // Dropped on a column container
+    const cat = cats.find((c) => c.id === overId);
+    if (cat) {
+      const list = cards.filter((c) => c.category_id === cat.id);
+      return { categoryId: cat.id, index: list.length };
+    }
+    return null;
+  };
+
+  const onDragOver = (e: DragOverEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const card = cards.find((c) => c.id === active.id);
+    if (!card) return;
+    const target = resolveTarget(over.id as string);
+    if (!target) return;
+    if (card.category_id === target.categoryId) return;
+    // Move card across columns optimistically (no DB write yet)
+    setCards((prev) => prev.map((c) => c.id === card.id ? { ...c, category_id: target.categoryId } : c));
+  };
+
   const onDragEnd = async (e: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = e;
     if (!over) return;
     const card = cards.find((c) => c.id === active.id);
     if (!card) return;
-    const overId = over.id as string;
-    const overCard = cards.find((c) => c.id === overId);
-    const targetCatId = overCard ? overCard.category_id : overId;
-    if (!targetCatId) return;
-    if (card.category_id === targetCatId && card.id === overId) return;
-    setCards((prev) => prev.map((c) => c.id === card.id ? { ...c, category_id: targetCatId } : c));
-    const { error } = await supabase.from("kanban_cards").update({ category_id: targetCatId }).eq("id", card.id);
-    if (error) toast.error("Erro ao mover card");
+    const target = resolveTarget(over.id as string);
+    if (!target) return;
+
+    // Compute new order within target column
+    const colCards = cards.filter((c) => c.category_id === target.categoryId && c.id !== card.id)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const insertAt = Math.min(target.index, colCards.length);
+    const reordered = [...colCards.slice(0, insertAt), card, ...colCards.slice(insertAt)];
+
+    // Update local state
+    setCards((prev) => {
+      const others = prev.filter((c) => c.category_id !== target.categoryId && c.id !== card.id);
+      return [...others, ...reordered.map((c, i) => ({ ...c, category_id: target.categoryId, order: i }))];
+    });
+
+    // Persist: update moved card + reorder siblings
+    const updates = reordered.map((c, i) =>
+      supabase.from("kanban_cards").update({ category_id: target.categoryId, order: i }).eq("id", c.id)
+    );
+    const results = await Promise.all(updates);
+    if (results.some((r) => r.error)) toast.error("Erro ao salvar posição");
   };
 
   const createCategory = async (name: string) => {

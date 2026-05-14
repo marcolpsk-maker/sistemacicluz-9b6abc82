@@ -223,15 +223,21 @@ function MonthCard({ month, items, onSelectDate }: { month: Date; items: Item[];
               </span>
               
               {inMonth && dayItems.length > 0 && (
-                <div className="flex gap-0.5 mt-0.5">
-                  {dayItems.slice(0, 3).map((it, idx) => (
-                    <div 
-                      key={idx} 
-                      className="h-1 w-1 rounded-full shadow-sm" 
-                      style={{ background: it.color }} 
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Indicador de tarefa - ponto azul pulsante no topo esquerdo */}
+                  <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-blue-600 rounded-full border border-white animate-pulse" />
+                  
+                  {/* Múltiplos pontos para múltiplas tarefas */}
+                  <div className="flex gap-0.5 mt-0.5">
+                    {dayItems.slice(0, 3).map((it, idx) => (
+                      <div 
+                        key={idx} 
+                        className="h-1 w-1 rounded-full shadow-sm" 
+                        style={{ background: it.color }} 
+                      />
+                    ))}
+                  </div>
+                </>
               )}
               
               {today && (

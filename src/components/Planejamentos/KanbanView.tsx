@@ -293,7 +293,7 @@ function Column({ category, cards, onAddCard, onEditCard, onEditCat, onDeleteCar
   onDeleteCard: (id: string) => void;
   onDeleteCat: () => void;
 }) {
-  const { setNodeRef, isOver } = useSortable({ id: category.id });
+  const { setNodeRef, isOver } = useDroppable({ id: category.id });
   return (
     <div ref={setNodeRef}
       className={cn("w-80 shrink-0 bg-[#F1F2F4] dark:bg-muted/20 rounded-xl p-3 flex flex-col max-h-full transition-all duration-200 shadow-sm",

@@ -231,8 +231,9 @@ export function KanbanView({ board, onDelete }: { board: KanbanBoard; onDelete: 
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners}
+      <DndContext sensors={sensors} collisionDetection={collisionDetection}
         onDragStart={(e: DragStartEvent) => setActiveId(e.active.id as string)}
+        onDragOver={onDragOver}
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}>
         <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-h-0 items-start">

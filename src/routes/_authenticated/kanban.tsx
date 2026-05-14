@@ -162,7 +162,7 @@ function KanbanPage() {
       )}
 
       <InputDialog open={newCat} title="Nova coluna" label="Nome da coluna"
-        placeholder="Ex: Em Revisão" onCancel={() => setNewCat(false)} onConfirm={createCategory} />
+        placeholder="Ex: Em Revisão" onCancel={() => setNewCat(false)} onConfirm={(v) => { void createCategory(v); }} />
 
       <ConfirmDialog open={!!confirmDel} variant="danger"
         title={confirmDel?.type === "card" ? "Excluir card?" : "Excluir coluna?"}

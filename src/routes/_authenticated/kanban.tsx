@@ -287,7 +287,7 @@ function KanbanPage() {
         placeholder="Ex: Marketing" onCancel={() => setNewBoard(false)} onConfirm={(v) => { void createBoard(v); }} />
 
       <InputDialog open={renameBoard} title="Renomear quadro" label="Novo nome"
-        defaultValue={activeBoard?.name ?? ""}
+        initialValue={activeBoard?.name ?? ""}
         onCancel={() => setRenameBoard(false)} onConfirm={(v) => { void renameActiveBoard(v); }} />
 
       <ConfirmDialog open={!!confirmDel} variant="danger"

@@ -182,8 +182,8 @@ function ReunioesPage() {
         </div>
       )}
 
-      <ConfirmDialog open={!!confirmId} onOpenChange={(v) => !v && setConfirmId(null)}
-        title="Excluir reunião?" description="O evento associado também será removido." onConfirm={remove} />
+      <ConfirmDialog open={!!confirmId} onCancel={() => setConfirmId(null)}
+        title="Excluir reunião?" message="O evento associado também será removido." variant="danger" onConfirm={remove} />
     </div>
   );
 }

@@ -141,8 +141,8 @@ function LembretesPage() {
         </div>
       )}
 
-      <ConfirmDialog open={!!confirmId} onOpenChange={(v) => !v && setConfirmId(null)}
-        title="Excluir lembrete?" description="Esta ação não pode ser desfeita." onConfirm={remove} />
+      <ConfirmDialog open={!!confirmId} onCancel={() => setConfirmId(null)}
+        title="Excluir lembrete?" message="Esta ação não pode ser desfeita." variant="danger" onConfirm={remove} />
     </div>
   );
 }

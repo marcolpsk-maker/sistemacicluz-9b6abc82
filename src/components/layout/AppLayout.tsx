@@ -1,6 +1,7 @@
 import { Outlet } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { motion } from "framer-motion";
+import { FloatingChat } from "@/components/chat/FloatingChat";
 
 export function AppLayout({ children }: { children?: React.ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export function AppLayout({ children }: { children?: React.ReactNode }) {
           {children ?? <Outlet />}
         </motion.div>
       </main>
+      <FloatingChat />
     </div>
   );
 }

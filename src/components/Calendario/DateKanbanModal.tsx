@@ -8,8 +8,10 @@ import { useCalendarTasks } from "@/hooks/useCalendarTasks";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Plus, Trash2, Edit2 } from "lucide-react";
 import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  closestCorners, type DragEndEvent, type DragStartEvent, useDroppable,
+  DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors,
+  pointerWithin, rectIntersection,
+  type DragEndEvent, type DragStartEvent, type DragOverEvent, type CollisionDetection,
+  useDroppable,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";

@@ -207,54 +207,7 @@ export type Database = {
           },
         ]
       }
-      kanban_cards: {
-        Row: {
-          category_id: string
-          created_at: string | null
-          description: string | null
-          due_date: string | null
-          id: string
-          order: number | null
-          priority: string | null
-          status: string | null
-          title: string
-          user_id: string
-        }
-        Insert: {
-          category_id: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          order?: number | null
-          priority?: string | null
-          status?: string | null
-          title: string
-          user_id: string
-        }
-        Update: {
-          category_id?: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          order?: number | null
-          priority?: string | null
-          status?: string | null
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "kanban_cards_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "kanban_categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      kanban_categories: {
+      kanban_boards: {
         Row: {
           color: string | null
           created_at: string | null
@@ -272,6 +225,92 @@ export type Database = {
           user_id: string
         }
         Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          order?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kanban_cards: {
+        Row: {
+          assigned_to: string | null
+          category_id: string
+          color: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          order: number | null
+          priority: string | null
+          status: string | null
+          tags: string[] | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category_id: string
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          order?: number | null
+          priority?: string | null
+          status?: string | null
+          tags?: string[] | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category_id?: string
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          order?: number | null
+          priority?: string | null
+          status?: string | null
+          tags?: string[] | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_cards_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_categories: {
+        Row: {
+          board_id: string
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          order: number | null
+          user_id: string
+        }
+        Insert: {
+          board_id: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          order?: number | null
+          user_id: string
+        }
+        Update: {
+          board_id?: string
           color?: string | null
           created_at?: string | null
           id?: string

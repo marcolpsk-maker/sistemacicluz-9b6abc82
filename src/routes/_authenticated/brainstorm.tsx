@@ -125,7 +125,7 @@ function Inner() {
       const { data: node, error } = await supabase.from("brainstorm_nodes").insert({
         user_id: u.id, mindmap_id: m, title: "Nova ideia", position: pos, parent_id: parentId,
       }).select().single();
-      if (error || !node) return toast.error("Erro ao criar nó");
+      if (error || !node) { toast.error("Erro ao criar nó"); return; }
       const { data: conn } = await supabase.from("brainstorm_connections").insert({
         user_id: u.id, mindmap_id: m, source_id: parentId, target_id: node.id,
       }).select().single();

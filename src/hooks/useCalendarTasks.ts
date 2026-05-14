@@ -81,10 +81,16 @@ export function useCalendarTasks(userId: string | undefined, date: Date | null) 
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
+    // Optimistic local update for instant UI feedback
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
     const { error } = await supabase.from("lembretes").update({ status: newStatus }).eq("id", taskId);
     if (error) {
       toast.error("Erro ao atualizar tarefa");
     }
+  };
+
+  const setTaskStatusLocal = (taskId: string, newStatus: string) => {
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
   };
 
   const deleteTask = async (taskId: string) => {
@@ -103,5 +109,5 @@ export function useCalendarTasks(userId: string | undefined, date: Date | null) 
     }
   };
 
-  return { tasks, loading, addTask, updateTaskStatus, deleteTask, updateTaskTitle };
+  return { tasks, loading, addTask, updateTaskStatus, setTaskStatusLocal, deleteTask, updateTaskTitle };
 }

@@ -18,12 +18,7 @@ const signInSchema = z.object({
   email: z.string().trim().email("E-mail inválido").max(255),
   password: z.string().min(6, "Mínimo de 6 caracteres").max(100),
 });
-const signUpSchema = signInSchema.extend({
-  name: z.string().trim().min(1, "Nome obrigatório").max(100),
-});
-
 type SignInValues = z.infer<typeof signInSchema>;
-type SignUpValues = z.infer<typeof signUpSchema>;
 
 function LoginPage() {
   const { user, signIn, loading } = useAuth();

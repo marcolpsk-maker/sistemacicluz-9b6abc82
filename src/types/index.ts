@@ -5,6 +5,7 @@ export type Tables<T extends keyof Database["public"]["Tables"]> =
 
 export type Profile = Tables<"profiles">;
 export type Area = Tables<"areas">;
+export type KanbanBoard = Tables<"kanban_boards">;
 export type KanbanCategory = Tables<"kanban_categories">;
 export type KanbanCard = Tables<"kanban_cards">;
 export type Lembrete = Tables<"lembretes">;

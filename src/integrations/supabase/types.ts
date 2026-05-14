@@ -54,6 +54,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          mindmap_id: string | null
           source_id: string
           target_id: string
           user_id: string
@@ -61,6 +62,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          mindmap_id?: string | null
           source_id: string
           target_id: string
           user_id: string
@@ -68,6 +70,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          mindmap_id?: string | null
           source_id?: string
           target_id?: string
           user_id?: string
@@ -96,6 +99,7 @@ export type Database = {
           description: string | null
           icon: string | null
           id: string
+          mindmap_id: string | null
           parent_id: string | null
           position: Json | null
           status: string | null
@@ -109,6 +113,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          mindmap_id?: string | null
           parent_id?: string | null
           position?: Json | null
           status?: string | null
@@ -122,6 +127,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          mindmap_id?: string | null
           parent_id?: string | null
           position?: Json | null
           status?: string | null
@@ -207,54 +213,7 @@ export type Database = {
           },
         ]
       }
-      kanban_cards: {
-        Row: {
-          category_id: string
-          created_at: string | null
-          description: string | null
-          due_date: string | null
-          id: string
-          order: number | null
-          priority: string | null
-          status: string | null
-          title: string
-          user_id: string
-        }
-        Insert: {
-          category_id: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          order?: number | null
-          priority?: string | null
-          status?: string | null
-          title: string
-          user_id: string
-        }
-        Update: {
-          category_id?: string
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          order?: number | null
-          priority?: string | null
-          status?: string | null
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "kanban_cards_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "kanban_categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      kanban_categories: {
+      kanban_boards: {
         Row: {
           color: string | null
           created_at: string | null
@@ -281,32 +240,157 @@ export type Database = {
         }
         Relationships: []
       }
-      lembretes: {
+      kanban_cards: {
         Row: {
-          completed: boolean | null
+          assigned_to: string | null
+          category_id: string
+          color: string | null
           created_at: string | null
           description: string | null
           due_date: string | null
           id: string
+          order: number | null
+          priority: string | null
+          status: string | null
+          tags: string[] | null
           title: string
           user_id: string
         }
         Insert: {
-          completed?: boolean | null
+          assigned_to?: string | null
+          category_id: string
+          color?: string | null
           created_at?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          order?: number | null
+          priority?: string | null
+          status?: string | null
+          tags?: string[] | null
           title: string
           user_id: string
         }
         Update: {
-          completed?: boolean | null
+          assigned_to?: string | null
+          category_id?: string
+          color?: string | null
           created_at?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
+          order?: number | null
+          priority?: string | null
+          status?: string | null
+          tags?: string[] | null
           title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_cards_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_categories: {
+        Row: {
+          board_id: string
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          order: number | null
+          user_id: string
+        }
+        Insert: {
+          board_id: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          order?: number | null
+          user_id: string
+        }
+        Update: {
+          board_id?: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          order?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lembretes: {
+        Row: {
+          color: string | null
+          completed: boolean | null
+          content: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          order: number | null
+          status: string | null
+          tags: string[] | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          completed?: boolean | null
+          content?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          order?: number | null
+          status?: string | null
+          tags?: string[] | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          completed?: boolean | null
+          content?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          order?: number | null
+          status?: string | null
+          tags?: string[] | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mindmaps: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

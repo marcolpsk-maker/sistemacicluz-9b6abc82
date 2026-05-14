@@ -18,17 +18,11 @@ const signInSchema = z.object({
   email: z.string().trim().email("E-mail inválido").max(255),
   password: z.string().min(6, "Mínimo de 6 caracteres").max(100),
 });
-const signUpSchema = signInSchema.extend({
-  name: z.string().trim().min(1, "Nome obrigatório").max(100),
-});
-
 type SignInValues = z.infer<typeof signInSchema>;
-type SignUpValues = z.infer<typeof signUpSchema>;
 
 function LoginPage() {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, loading } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -49,26 +43,15 @@ function LoginPage() {
         </div>
 
         <Card className="p-6 md:p-8">
-          <h1 className="text-2xl font-bold text-foreground mb-1">
-            {mode === "signin" ? "Entrar" : "Criar conta"}
-          </h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            {mode === "signin" ? "Acesse sua conta CICLUZ" : "Cadastre-se para começar"}
-          </p>
+          <h1 className="text-2xl font-bold text-foreground mb-1">Entrar</h1>
+          <p className="text-sm text-muted-foreground mb-6">Acesse sua conta CICLUZ</p>
 
-          {mode === "signin" ? (
-            <SignInForm onSubmit={signIn} submitting={submitting} setSubmitting={setSubmitting} onDone={() => navigate({ to: "/dashboard" })} />
-          ) : (
-            <SignUpForm onSubmit={signUp} submitting={submitting} setSubmitting={setSubmitting} onDone={() => navigate({ to: "/dashboard" })} />
-          )}
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "signin" ? (
-              <>Ainda não tem conta? <button className="text-primary font-medium hover:underline" onClick={() => setMode("signup")}>Cadastre-se</button></>
-            ) : (
-              <>Já tem conta? <button className="text-primary font-medium hover:underline" onClick={() => setMode("signin")}>Entrar</button></>
-            )}
-          </div>
+          <SignInForm
+            onSubmit={signIn}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            onDone={() => navigate({ to: "/dashboard" })}
+          />
         </Card>
       </motion.div>
     </div>
@@ -112,44 +95,3 @@ function SignInForm({ onSubmit, submitting, setSubmitting, onDone }: {
   );
 }
 
-function SignUpForm({ onSubmit, submitting, setSubmitting, onDone }: {
-  onSubmit: (email: string, password: string, name: string) => Promise<void>;
-  submitting: boolean; setSubmitting: (v: boolean) => void; onDone: () => void;
-}) {
-  const { register, handleSubmit, formState: { errors } } = useForm<SignUpValues>({ resolver: zodResolver(signUpSchema) });
-
-  const submit = async (v: SignUpValues) => {
-    setSubmitting(true);
-    try {
-      await onSubmit(v.email, v.password, v.name);
-      toast.success("Conta criada! Bem-vindo ao CICLUZ.");
-      onDone();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Falha ao criar conta";
-      toast.error(msg.includes("already registered") ? "E-mail já cadastrado" : msg);
-    } finally { setSubmitting(false); }
-  };
-
-  return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="name">Nome</Label>
-        <Input id="name" {...register("name")} placeholder="Seu nome" />
-        {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="email">E-mail</Label>
-        <Input id="email" type="email" {...register("email")} placeholder="seu@email.com" />
-        {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="password">Senha</Label>
-        <Input id="password" type="password" {...register("password")} placeholder="Mínimo 6 caracteres" />
-        {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
-      </div>
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar conta"}
-      </Button>
-    </form>
-  );
-}

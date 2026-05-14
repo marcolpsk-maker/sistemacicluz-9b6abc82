@@ -26,7 +26,7 @@ type SignInValues = z.infer<typeof signInSchema>;
 type SignUpValues = z.infer<typeof signUpSchema>;
 
 function LoginPage() {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, loading } = useAuth();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,26 +48,15 @@ function LoginPage() {
         </div>
 
         <Card className="p-6 md:p-8">
-          <h1 className="text-2xl font-bold text-foreground mb-1">
-            {mode === "signin" ? "Entrar" : "Criar conta"}
-          </h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            {mode === "signin" ? "Acesse sua conta CICLUZ" : "Cadastre-se para começar"}
-          </p>
+          <h1 className="text-2xl font-bold text-foreground mb-1">Entrar</h1>
+          <p className="text-sm text-muted-foreground mb-6">Acesse sua conta CICLUZ</p>
 
-          {mode === "signin" ? (
-            <SignInForm onSubmit={signIn} submitting={submitting} setSubmitting={setSubmitting} onDone={() => navigate({ to: "/dashboard" })} />
-          ) : (
-            <SignUpForm onSubmit={signUp} submitting={submitting} setSubmitting={setSubmitting} onDone={() => navigate({ to: "/dashboard" })} />
-          )}
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "signin" ? (
-              <>Ainda não tem conta? <button className="text-primary font-medium hover:underline" onClick={() => setMode("signup")}>Cadastre-se</button></>
-            ) : (
-              <>Já tem conta? <button className="text-primary font-medium hover:underline" onClick={() => setMode("signin")}>Entrar</button></>
-            )}
-          </div>
+          <SignInForm
+            onSubmit={signIn}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            onDone={() => navigate({ to: "/dashboard" })}
+          />
         </Card>
       </motion.div>
     </div>

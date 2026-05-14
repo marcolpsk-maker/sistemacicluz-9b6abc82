@@ -18,7 +18,10 @@ import { InputDialog } from "@/components/modals/InputDialog";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/brainstorm")({ component: BrainstormPage });
+export const Route = createFileRoute("/_authenticated/brainstorm")({
+  ssr: false,
+  component: BrainstormPage,
+});
 
 type Mindmap = { id: string; name: string };
 

@@ -1,12 +1,24 @@
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 
-export function MindmapNode({ data, selected, id }: any) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(data.label);
+export interface MindmapNodeData {
+  label: string;
+  isMain?: boolean;
+  autoEdit?: boolean;
+  onEdit?: (id: string, value: string) => void;
+  onDelete?: (id: string) => void;
+  onAddChild?: (id: string) => void;
+}
+
+export function MindmapNode({ data, selected, id }: NodeProps) {
+  const d = data as unknown as MindmapNodeData;
+  const [editing, setEditing] = useState<boolean>(!!d.autoEdit);
+  const [value, setValue] = useState(d.label);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setValue(d.label); }, [d.label]);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -15,36 +27,32 @@ export function MindmapNode({ data, selected, id }: any) {
     }
   }, [editing]);
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      setEditing(false);
-      data.onEdit?.(id, value);
-      // Create sibling if not editing
-      if (!editing) {
-        data.onAddSibling?.(id);
-      }
-    }
-    if (e.key === "Tab") {
-      e.preventDefault();
-      data.onAddChild?.(id);
-    }
-    if (e.key === "Escape") {
-      setEditing(false);
-      setValue(data.label);
-    }
+  const commit = () => {
+    setEditing(false);
+    const v = value.trim();
+    if (v && v !== d.label) d.onEdit?.(id, v);
+    else setValue(d.label);
   };
 
-  const isMain = data.isMain;
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    if (e.key === "Escape") { e.preventDefault(); setEditing(false); setValue(d.label); }
+  };
+
+  const isMain = !!d.isMain;
 
   return (
     <div className={cn(
-      "group relative px-5 py-2.5 rounded-full font-semibold transition-all duration-200 border shadow-sm flex items-center gap-2",
-      selected ? "ring-2 ring-primary/40 scale-[1.02]" : "",
+      "group relative px-5 py-2.5 rounded-2xl font-medium transition-all border flex items-center gap-2 select-none",
+      selected
+        ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg"
+        : "shadow-sm hover:shadow-md",
       isMain
-        ? "bg-primary text-primary-foreground border-primary/20 shadow-md"
-        : "bg-card text-card-foreground border-border hover:border-primary/30"
+        ? "bg-primary text-primary-foreground border-primary"
+        : "bg-card text-card-foreground border-border hover:border-primary/40",
     )}>
-      <Handle type="target" position={Position.Left} className="w-2 h-2 !bg-primary border-none opacity-0 group-hover:opacity-100 transition-opacity" />
+      <Handle type="target" position={Position.Left} className="!w-2 !h-2 !bg-primary !border-0 opacity-0" />
 
       {editing ? (
         <input
@@ -52,35 +60,40 @@ export function MindmapNode({ data, selected, id }: any) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
-          onBlur={() => { setEditing(false); data.onEdit?.(id, value); }}
-          className="bg-transparent border-none outline-none text-center w-full min-w-[80px]"
+          onBlur={commit}
+          className={cn(
+            "bg-transparent border-none outline-none text-center min-w-[100px] max-w-[220px]",
+            isMain ? "text-primary-foreground placeholder:text-primary-foreground/60" : "text-foreground",
+          )}
         />
       ) : (
         <div
-          className="min-w-[60px] max-w-[200px] text-center outline-none cursor-text break-words select-none text-sm"
+          className={cn("min-w-[60px] max-w-[220px] text-center break-words text-sm", isMain && "text-base")}
           onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
         >
-          {data.label || "Novo nó"}
+          {d.label || "Nova ideia"}
         </div>
       )}
 
-      <Handle type="source" position={Position.Right} className="w-2 h-2 !bg-primary border-none opacity-0 group-hover:opacity-100 transition-opacity" />
+      <Handle type="source" position={Position.Right} className="!w-2 !h-2 !bg-primary !border-0 opacity-0" />
 
-      <div className="absolute -right-2 -top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
+      <div className="absolute -right-2 -top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); data.onAddChild?.(id); }}
-          className="bg-primary text-primary-foreground rounded-full p-1 shadow-md hover:scale-110 transition-transform border border-primary/20"
+          onClick={(e) => { e.stopPropagation(); d.onAddChild?.(id); }}
+          className="bg-primary text-primary-foreground rounded-full p-1 shadow hover:scale-110 transition-transform"
           aria-label="Adicionar filho"
+          title="Adicionar filho (Tab)"
         >
           <Plus className="h-3 w-3" />
         </button>
         {!isMain && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); data.onDelete?.(id); }}
-            className="bg-card text-destructive rounded-full p-1 shadow-md hover:scale-110 transition-transform border border-border"
+            onClick={(e) => { e.stopPropagation(); d.onDelete?.(id); }}
+            className="bg-card text-destructive rounded-full p-1 shadow hover:scale-110 transition-transform border border-border"
             aria-label="Excluir"
+            title="Excluir (Delete)"
           >
             <Trash2 className="h-3 w-3" />
           </button>

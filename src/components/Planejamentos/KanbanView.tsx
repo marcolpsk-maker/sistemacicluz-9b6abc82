@@ -53,7 +53,17 @@ export function KanbanView({ board, onDelete }: { board: KanbanBoard; onDelete: 
   const [newCat, setNewCat] = useState(false);
   const [renameBoard, setRenameBoard] = useState(false);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  );
+
+  // Custom collision: prefer pointer-within (cards), fall back to rect-intersection (empty columns)
+  const collisionDetection: CollisionDetection = (args) => {
+    const pointer = pointerWithin(args);
+    if (pointer.length > 0) return pointer;
+    return rectIntersection(args);
+  };
 
   useEffect(() => {
     if (!user || !board) return;

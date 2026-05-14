@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useCallback, useState, useRef } from "react";
+import { useEffect, useCallback, useState, useRef, useMemo } from "react";
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap,
   useNodesState, useEdgesState, addEdge, useReactFlow,
@@ -17,6 +17,7 @@ import {
 import { InputDialog } from "@/components/modals/InputDialog";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog";
 import { toast } from "sonner";
+import { MindmapNode } from "@/components/Brainstorm/MindmapNode";
 
 export const Route = createFileRoute("/_authenticated/brainstorm")({
   ssr: false,
@@ -45,6 +46,8 @@ function Inner() {
   const { screenToFlowPosition } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  const nodeTypes = useMemo(() => ({ mindmapNode: MindmapNode }), []);
+
   // load maps
   useEffect(() => {
     if (!user) return;
@@ -57,36 +60,109 @@ function Inner() {
     })();
   }, [user]);
 
+  const handleEditNode = useCallback(async (id: string, oldTitle: string) => {
+    const newTitle = window.prompt("Editar ideia:", oldTitle);
+    if (newTitle == null || !newTitle.trim()) return;
+    await supabase.from("brainstorm_nodes").update({ title: newTitle.trim() }).eq("id", id);
+    setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, label: newTitle.trim() } } : n));
+  }, [setNodes]);
+
+  const handleAddChild = useCallback(async (parentId: string) => {
+    if (!user || !activeMap) return;
+    setNodes((currentNodes) => {
+      const parentNode = currentNodes.find(n => n.id === parentId);
+      if (!parentNode) return currentNodes;
+      
+      setEdges((currentEdges) => {
+        // We use setEdges/setNodes callback to get latest state without dependency cycles
+        const siblings = currentEdges.filter(e => e.source === parentId);
+        
+        // Simple auto layout: place to the right, and space vertically based on siblings
+        const yOffset = (siblings.length * 80) - ((siblings.length > 0 ? 80 : 0) / 2);
+        const pos = { 
+          x: parentNode.position.x + 250, 
+          y: parentNode.position.y + yOffset 
+        };
+        
+        setTimeout(async () => {
+          const title = window.prompt("Nova ideia:");
+          if (!title || !title.trim()) return;
+
+          const { data: nodeData, error: nodeError } = await supabase.from("brainstorm_nodes").insert({
+            user_id: user.id, mindmap_id: activeMap, title: title.trim(), position: pos, parent_id: parentId
+          }).select().single();
+
+          if (nodeError || !nodeData) return toast.error("Falha ao criar nó");
+          
+          const { data: edgeData, error: edgeError } = await supabase.from("brainstorm_connections").insert({
+            user_id: user.id, mindmap_id: activeMap, source_id: parentId, target_id: nodeData.id
+          }).select().single();
+
+          setNodes((nds) => [...nds, {
+            id: nodeData.id, 
+            position: pos, 
+            type: "mindmapNode",
+            data: { 
+              label: nodeData.title, 
+              color: nodeData.color,
+              onEdit: handleEditNode,
+              onAddChild: handleAddChild
+            },
+          }]);
+
+          if (!edgeError && edgeData) {
+            setEdges((eds) => [...eds, { 
+              id: edgeData.id, 
+              source: parentId, 
+              target: nodeData.id,
+              type: 'bezier'
+            }]);
+          }
+        }, 10);
+        
+        return currentEdges;
+      });
+      return currentNodes;
+    });
+  }, [user, activeMap, setNodes, setEdges, handleEditNode]);
+
   // load nodes + edges of active map
   useEffect(() => {
     if (!activeMap) { setNodes([]); setEdges([]); setLoading(false); return; }
     setLoading(true);
+    let active = true;
     (async () => {
       const [{ data: nData }, { data: eData }] = await Promise.all([
         supabase.from("brainstorm_nodes").select("*").eq("mindmap_id", activeMap),
         supabase.from("brainstorm_connections").select("*").eq("mindmap_id", activeMap),
       ]);
+      if (!active) return;
+      
       const n: Node[] = (nData || []).map((row) => {
         const pos = (row.position as { x: number; y: number } | null) || { x: 0, y: 0 };
         return {
           id: row.id,
           position: pos,
-          data: { label: row.title },
-          style: {
-            background: row.color || "#4F46E5",
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            padding: 10,
-            fontWeight: 500,
+          type: "mindmapNode",
+          data: { 
+            label: row.title,
+            color: row.color,
+            onEdit: handleEditNode,
+            onAddChild: handleAddChild
           },
         };
       });
-      const e: Edge[] = (eData || []).map((row) => ({ id: row.id, source: row.source_id, target: row.target_id }));
+      const e: Edge[] = (eData || []).map((row) => ({ 
+        id: row.id, 
+        source: row.source_id, 
+        target: row.target_id,
+        type: 'bezier'
+      }));
       setNodes(n); setEdges(e);
       setLoading(false);
     })();
-  }, [activeMap, setNodes, setEdges]);
+    return () => { active = false; };
+  }, [activeMap, setNodes, setEdges, handleEditNode, handleAddChild]);
 
   const persistNodePosition = useCallback(async (id: string, x: number, y: number) => {
     await supabase.from("brainstorm_nodes").update({ position: { x, y } }).eq("id", id);
@@ -116,7 +192,7 @@ function Inner() {
       .insert({ user_id: user.id, mindmap_id: activeMap, source_id: conn.source, target_id: conn.target })
       .select().single();
     if (error || !data) return toast.error("Falha ao conectar");
-    setEdges((eds) => addEdge({ ...conn, id: data.id } as Edge, eds));
+    setEdges((eds) => addEdge({ ...conn, id: data.id, type: 'bezier' } as Edge, eds));
   }, [user, activeMap, setEdges]);
 
   const addNode = useCallback(async (title: string, atFlowPos?: { x: number; y: number }) => {
@@ -127,24 +203,24 @@ function Inner() {
     }).select().single();
     if (error || !data) return toast.error("Falha ao criar nó");
     setNodes((nds) => [...nds, {
-      id: data.id, position: pos, data: { label: data.title },
-      style: { background: "#4F46E5", color: "white", border: "none", borderRadius: 8, padding: 10, fontWeight: 500 },
+      id: data.id, 
+      position: pos, 
+      type: "mindmapNode",
+      data: { 
+        label: data.title,
+        color: data.color,
+        onEdit: handleEditNode,
+        onAddChild: handleAddChild
+      },
     }]);
-  }, [user, activeMap, setNodes]);
+  }, [user, activeMap, setNodes, handleEditNode, handleAddChild]);
 
   const onPaneDoubleClick = useCallback((e: React.MouseEvent) => {
-    const title = window.prompt("Título do nó:");
+    const title = window.prompt("Ideia principal:");
     if (!title) return;
     const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
     void addNode(title, pos);
   }, [addNode, screenToFlowPosition]);
-
-  const onNodeDoubleClick = useCallback(async (_e: React.MouseEvent, node: Node) => {
-    const newTitle = window.prompt("Editar título:", String(node.data.label || ""));
-    if (newTitle == null || !newTitle.trim()) return;
-    await supabase.from("brainstorm_nodes").update({ title: newTitle.trim() }).eq("id", node.id);
-    setNodes((nds) => nds.map((n) => n.id === node.id ? { ...n, data: { ...n.data, label: newTitle.trim() } } : n));
-  }, [setNodes]);
 
   const createMap = async (name: string) => {
     if (!user || !name.trim()) return;
@@ -190,13 +266,13 @@ function Inner() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setNewMap(true)}><Plus className="h-4 w-4 mr-2" />Novo mapa</Button>
-          <Button onClick={() => addNode(window.prompt("Título do nó:") || "")} disabled={!activeMap}>
-            <Plus className="h-4 w-4 mr-2" />Novo nó
+          <Button onClick={() => addNode(window.prompt("Ideia principal:") || "")} disabled={!activeMap}>
+            <Plus className="h-4 w-4 mr-2" />Nova Ideia
           </Button>
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">Duplo-clique no canvas para criar nó · duplo-clique no nó para editar · arraste das bordas para conectar</p>
+      <p className="text-xs text-muted-foreground">Duplo-clique no canvas para criar ideia principal · duplo-clique na ideia para editar · use o botão (+) para ramificar</p>
 
       <Card ref={wrapperRef} className="flex-1 min-h-[500px] overflow-hidden">
         {loading ? (
@@ -210,12 +286,12 @@ function Inner() {
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onPaneClick={undefined}
-            onNodeDoubleClick={onNodeDoubleClick}
             onDoubleClick={onPaneDoubleClick}
+            defaultEdgeOptions={{ type: "bezier", style: { strokeWidth: 2, stroke: "#9ca3af" } }}
             fitView
           >
             <Background />
@@ -226,10 +302,10 @@ function Inner() {
       </Card>
 
       <InputDialog open={newMap} title="Novo mapa mental" label="Nome do mapa"
-        placeholder="Ex.: Lançamento Q1" onCancel={() => setNewMap(false)} onConfirm={(v) => { void createMap(v); }} />
+        placeholder="Ex.: Estratégia Q1" onCancel={() => setNewMap(false)} onConfirm={(v) => { void createMap(v); }} />
 
       <ConfirmDialog open={confirmDelMap} variant="danger" title="Excluir mapa?"
-        message="Todos os nós e conexões deste mapa serão removidos."
+        message="Todas as ideias e conexões deste mapa serão removidas."
         onConfirm={deleteActiveMap} onCancel={() => setConfirmDelMap(false)} />
     </div>
   );

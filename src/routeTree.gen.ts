@@ -13,9 +13,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedReunioesRouteImport } from './routes/_authenticated/reunioes'
+import { Route as AuthenticatedPlanejamentosRouteImport } from './routes/_authenticated/planejamentos'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedLembretesRouteImport } from './routes/_authenticated/lembretes'
-import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
@@ -41,6 +41,12 @@ const AuthenticatedReunioesRoute = AuthenticatedReunioesRouteImport.update({
   path: '/reunioes',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPlanejamentosRoute =
+  AuthenticatedPlanejamentosRouteImport.update({
+    id: '/planejamentos',
+    path: '/planejamentos',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
@@ -49,11 +55,6 @@ const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
 const AuthenticatedLembretesRoute = AuthenticatedLembretesRouteImport.update({
   id: '/lembretes',
   path: '/lembretes',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
-  id: '/kanban',
-  path: '/kanban',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -90,9 +91,9 @@ export interface FileRoutesByFullPath {
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/chat': typeof AuthenticatedChatRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/kanban': typeof AuthenticatedKanbanRoute
   '/lembretes': typeof AuthenticatedLembretesRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/planejamentos': typeof AuthenticatedPlanejamentosRoute
   '/reunioes': typeof AuthenticatedReunioesRoute
 }
 export interface FileRoutesByTo {
@@ -103,9 +104,9 @@ export interface FileRoutesByTo {
   '/calendario': typeof AuthenticatedCalendarioRoute
   '/chat': typeof AuthenticatedChatRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/kanban': typeof AuthenticatedKanbanRoute
   '/lembretes': typeof AuthenticatedLembretesRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/planejamentos': typeof AuthenticatedPlanejamentosRoute
   '/reunioes': typeof AuthenticatedReunioesRoute
 }
 export interface FileRoutesById {
@@ -118,9 +119,9 @@ export interface FileRoutesById {
   '/_authenticated/calendario': typeof AuthenticatedCalendarioRoute
   '/_authenticated/chat': typeof AuthenticatedChatRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/lembretes': typeof AuthenticatedLembretesRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/_authenticated/planejamentos': typeof AuthenticatedPlanejamentosRoute
   '/_authenticated/reunioes': typeof AuthenticatedReunioesRoute
 }
 export interface FileRouteTypes {
@@ -133,9 +134,9 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/chat'
     | '/dashboard'
-    | '/kanban'
     | '/lembretes'
     | '/perfil'
+    | '/planejamentos'
     | '/reunioes'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -146,9 +147,9 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/chat'
     | '/dashboard'
-    | '/kanban'
     | '/lembretes'
     | '/perfil'
+    | '/planejamentos'
     | '/reunioes'
   id:
     | '__root__'
@@ -160,9 +161,9 @@ export interface FileRouteTypes {
     | '/_authenticated/calendario'
     | '/_authenticated/chat'
     | '/_authenticated/dashboard'
-    | '/_authenticated/kanban'
     | '/_authenticated/lembretes'
     | '/_authenticated/perfil'
+    | '/_authenticated/planejamentos'
     | '/_authenticated/reunioes'
   fileRoutesById: FileRoutesById
 }
@@ -202,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReunioesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/planejamentos': {
+      id: '/_authenticated/planejamentos'
+      path: '/planejamentos'
+      fullPath: '/planejamentos'
+      preLoaderRoute: typeof AuthenticatedPlanejamentosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/perfil': {
       id: '/_authenticated/perfil'
       path: '/perfil'
@@ -214,13 +222,6 @@ declare module '@tanstack/react-router' {
       path: '/lembretes'
       fullPath: '/lembretes'
       preLoaderRoute: typeof AuthenticatedLembretesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/kanban': {
-      id: '/_authenticated/kanban'
-      path: '/kanban'
-      fullPath: '/kanban'
-      preLoaderRoute: typeof AuthenticatedKanbanRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dashboard': {
@@ -267,9 +268,9 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCalendarioRoute: typeof AuthenticatedCalendarioRoute
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLembretesRoute: typeof AuthenticatedLembretesRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedPlanejamentosRoute: typeof AuthenticatedPlanejamentosRoute
   AuthenticatedReunioesRoute: typeof AuthenticatedReunioesRoute
 }
 
@@ -279,9 +280,9 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCalendarioRoute: AuthenticatedCalendarioRoute,
   AuthenticatedChatRoute: AuthenticatedChatRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLembretesRoute: AuthenticatedLembretesRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedPlanejamentosRoute: AuthenticatedPlanejamentosRoute,
   AuthenticatedReunioesRoute: AuthenticatedReunioesRoute,
 }
 
@@ -297,3 +298,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

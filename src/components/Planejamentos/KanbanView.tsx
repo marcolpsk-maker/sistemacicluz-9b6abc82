@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
@@ -6,7 +5,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { KanbanSquare, Plus, Trash2, MoreVertical, Loader2, Calendar as CalIcon, X, Pencil } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Loader2, Calendar as CalIcon, X, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,8 +31,6 @@ import { InputDialog } from "@/components/modals/InputDialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/kanban")({ component: KanbanPage });
-
 const PRIO_LABEL: Record<Priority, string> = { low: "Baixa", medium: "Média", high: "Alta" };
 const PRIO_CLASS: Record<Priority, string> = {
   low: "bg-secondary-light text-secondary",
@@ -43,10 +40,8 @@ const PRIO_CLASS: Record<Priority, string> = {
 
 const COLORS = ["#4F46E5", "#10B981", "#F59E0B", "#EC4899", "#06B6D4", "#EF4444", "#8B5CF6", "#9CA3AF"];
 
-function KanbanPage() {
+export function KanbanView({ board, onDelete }: { board: KanbanBoard; onDelete: () => void }) {
   const { user } = useAuth();
-  const [boards, setBoards] = useState<KanbanBoard[]>([]);
-  const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
   const [cats, setCats] = useState<KanbanCategory[]>([]);
   const [cards, setCards] = useState<KCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,36 +50,16 @@ function KanbanPage() {
   const [editingCat, setEditingCat] = useState<KanbanCategory | null>(null);
   const [confirmDel, setConfirmDel] = useState<{ type: "card" | "category" | "board"; id: string } | null>(null);
   const [newCat, setNewCat] = useState(false);
-  const [newBoard, setNewBoard] = useState(false);
   const [renameBoard, setRenameBoard] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  // Load boards
   useEffect(() => {
-    if (!user) return;
-    let active = true;
-    (async () => {
-      const { data } = await supabase.from("kanban_boards").select("*").order("order");
-      if (!active || !data) return;
-      setBoards(data);
-      if (data.length && !activeBoardId) setActiveBoardId(data[0].id);
-    })();
-    const ch = supabase.channel("kanban-boards-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "kanban_boards" }, async () => {
-        const { data } = await supabase.from("kanban_boards").select("*").order("order");
-        if (data) setBoards(data);
-      }).subscribe();
-    return () => { active = false; supabase.removeChannel(ch); };
-  }, [user]);
-
-  // Load cats + cards for active board
-  useEffect(() => {
-    if (!user || !activeBoardId) { setLoading(false); return; }
+    if (!user || !board) return;
     setLoading(true);
     let active = true;
     (async () => {
-      const { data: c } = await supabase.from("kanban_categories").select("*").eq("board_id", activeBoardId).order("order");
+      const { data: c } = await supabase.from("kanban_categories").select("*").eq("board_id", board.id).order("order");
       if (!active) return;
       const catList = c || [];
       setCats(catList);
@@ -98,20 +73,20 @@ function KanbanPage() {
       }
       setLoading(false);
     })();
-    const ch = supabase.channel(`kanban-rt-${activeBoardId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "kanban_categories", filter: `board_id=eq.${activeBoardId}` }, async () => {
-        const { data } = await supabase.from("kanban_categories").select("*").eq("board_id", activeBoardId).order("order");
+    const ch = supabase.channel(`kanban-rt-${board.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "kanban_categories", filter: `board_id=eq.${board.id}` }, async () => {
+        const { data } = await supabase.from("kanban_categories").select("*").eq("board_id", board.id).order("order");
         if (data) setCats(data);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "kanban_cards" }, async () => {
-        const { data: c2 } = await supabase.from("kanban_categories").select("id").eq("board_id", activeBoardId);
+        const { data: c2 } = await supabase.from("kanban_categories").select("id").eq("board_id", board.id);
         const ids = (c2 || []).map((x) => x.id);
         if (!ids.length) { setCards([]); return; }
         const { data: k } = await supabase.from("kanban_cards").select("*").in("category_id", ids).order("order");
         if (k) setCards(k);
       }).subscribe();
     return () => { active = false; supabase.removeChannel(ch); };
-  }, [user, activeBoardId]);
+  }, [user, board?.id]);
 
   const cardsByCat = useMemo(() => {
     const m: Record<string, KCard[]> = {};
@@ -121,7 +96,6 @@ function KanbanPage() {
   }, [cards, cats]);
 
   const activeCard = activeId ? cards.find((c) => c.id === activeId) : null;
-  const activeBoard = boards.find((b) => b.id === activeBoardId);
 
   const onDragEnd = async (e: DragEndEvent) => {
     setActiveId(null);
@@ -140,35 +114,18 @@ function KanbanPage() {
   };
 
   const createCategory = async (name: string) => {
-    if (!user || !name.trim() || !activeBoardId) return;
+    if (!user || !name.trim() || !board) return;
     const order = cats.length;
     const { error } = await supabase.from("kanban_categories")
-      .insert({ user_id: user.id, board_id: activeBoardId, name: name.trim(), order, color: "#4F46E5" });
+      .insert({ user_id: user.id, board_id: board.id, name: name.trim(), order, color: "#4F46E5" });
     if (error) return toast.error("Erro ao criar coluna");
     toast.success("Coluna criada");
     setNewCat(false);
   };
 
-  const createBoard = async (name: string) => {
-    if (!user || !name.trim()) return;
-    const order = boards.length;
-    const { data, error } = await supabase.from("kanban_boards")
-      .insert({ user_id: user.id, name: name.trim(), order, color: "#4F46E5" }).select().single();
-    if (error || !data) return toast.error("Erro ao criar quadro");
-    // Default columns
-    await supabase.from("kanban_categories").insert([
-      { user_id: user.id, board_id: data.id, name: "A Fazer", color: "#9CA3AF", order: 1 },
-      { user_id: user.id, board_id: data.id, name: "Em Andamento", color: "#F59E0B", order: 2 },
-      { user_id: user.id, board_id: data.id, name: "Concluído", color: "#10B981", order: 3 },
-    ]);
-    setActiveBoardId(data.id);
-    toast.success("Quadro criado");
-    setNewBoard(false);
-  };
-
   const renameActiveBoard = async (name: string) => {
-    if (!activeBoardId || !name.trim()) return;
-    await supabase.from("kanban_boards").update({ name: name.trim() }).eq("id", activeBoardId);
+    if (!board || !name.trim()) return;
+    await supabase.from("kanban_boards").update({ name: name.trim() }).eq("id", board.id);
     setRenameBoard(false);
     toast.success("Quadro renomeado");
   };
@@ -181,8 +138,7 @@ function KanbanPage() {
       await supabase.from("kanban_categories").delete().eq("board_id", confirmDel.id);
       await supabase.from("kanban_boards").delete().eq("id", confirmDel.id);
       toast.success("Quadro removido");
-      const next = boards.find((b) => b.id !== confirmDel.id);
-      setActiveBoardId(next?.id ?? null);
+      onDelete();
     } else {
       const table = confirmDel.type === "card" ? "kanban_cards" : "kanban_categories";
       await supabase.from(table).delete().eq("id", confirmDel.id);
@@ -191,84 +147,60 @@ function KanbanPage() {
     setConfirmDel(null);
   };
 
-  if (loading && !boards.length) {
+  if (loading) {
     return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   }
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="flex flex-col h-full space-y-4 min-h-0">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <KanbanSquare className="h-7 w-7" />
+        <div className="flex items-center gap-3">
+          <span className="h-4 w-4 rounded-full shrink-0" style={{ background: board.color || "#4F46E5" }} />
           <div>
-            <Select value={activeBoardId ?? ""} onValueChange={setActiveBoardId}>
-              <SelectTrigger className="w-[260px] h-9 text-base font-semibold">
-                <SelectValue placeholder="Selecione um quadro" />
-              </SelectTrigger>
-              <SelectContent>
-                {boards.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ background: b.color || "#4F46E5" }} />
-                      {b.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs mt-1">{cards.length} cards · {cats.length} colunas</p>
+            <h2 className="text-xl font-bold">{board.name}</h2>
+            <p className="text-muted-foreground text-xs mt-0.5">{cards.length} cards · {cats.length} colunas</p>
           </div>
-          {activeBoard && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => setRenameBoard(true)}><Pencil className="h-4 w-4 mr-2" />Renomear quadro</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setConfirmDel({ type: "board", id: activeBoard.id })} className="text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />Excluir quadro
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setNewBoard(true)}><Plus className="h-4 w-4 mr-2" />Novo quadro</Button>
-          <Button onClick={() => setNewCat(true)} disabled={!activeBoardId}><Plus className="h-4 w-4 mr-2" />Nova coluna</Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setNewCat(true)} variant="outline" size="sm"><Plus className="h-4 w-4 mr-2" />Nova coluna</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setRenameBoard(true)}><Pencil className="h-4 w-4 mr-2" />Renomear quadro</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setConfirmDel({ type: "board", id: board.id })} className="text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />Excluir quadro
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {!activeBoardId ? (
-        <Card className="p-10 text-center text-muted-foreground">
-          <p>Crie seu primeiro quadro para começar.</p>
-          <Button className="mt-4" onClick={() => setNewBoard(true)}><Plus className="h-4 w-4 mr-2" />Novo quadro</Button>
-        </Card>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCorners}
-          onDragStart={(e: DragStartEvent) => setActiveId(e.active.id as string)}
-          onDragEnd={onDragEnd}
-          onDragCancel={() => setActiveId(null)}>
-          <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-h-0">
-            {cats.map((cat) => (
-              <Column key={cat.id} category={cat} cards={cardsByCat[cat.id] || []}
-                onAddCard={() => setEditing({ categoryId: cat.id })}
-                onEditCard={(card) => setEditing({ card, categoryId: card.category_id })}
-                onEditCat={() => setEditingCat(cat)}
-                onDeleteCard={(id) => setConfirmDel({ type: "card", id })}
-                onDeleteCat={() => setConfirmDel({ type: "category", id: cat.id })} />
-            ))}
-            {!cats.length && (
-              <Card className="p-8 text-center text-muted-foreground w-full">
-                Nenhuma coluna ainda. Clique em "Nova coluna".
-              </Card>
-            )}
-          </div>
-          <DragOverlay>
-            {activeCard && <CardItem card={activeCard} dragging />}
-          </DragOverlay>
-        </DndContext>
-      )}
+      <DndContext sensors={sensors} collisionDetection={closestCorners}
+        onDragStart={(e: DragStartEvent) => setActiveId(e.active.id as string)}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setActiveId(null)}>
+        <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-h-0 items-start">
+          {cats.map((cat) => (
+            <Column key={cat.id} category={cat} cards={cardsByCat[cat.id] || []}
+              onAddCard={() => setEditing({ categoryId: cat.id })}
+              onEditCard={(card) => setEditing({ card, categoryId: card.category_id })}
+              onEditCat={() => setEditingCat(cat)}
+              onDeleteCard={(id) => setConfirmDel({ type: "card", id })}
+              onDeleteCat={() => setConfirmDel({ type: "category", id: cat.id })} />
+          ))}
+          {!cats.length && (
+            <Card className="p-8 text-center text-muted-foreground w-full">
+              Nenhuma coluna ainda. Clique em "Nova coluna".
+            </Card>
+          )}
+        </div>
+        <DragOverlay>
+          {activeCard && <CardItem card={activeCard} dragging />}
+        </DragOverlay>
+      </DndContext>
 
       {editing && (
         <CardDialog open key={editing.card?.id ?? "new"}
@@ -283,11 +215,8 @@ function KanbanPage() {
       <InputDialog open={newCat} title="Nova coluna" label="Nome da coluna"
         placeholder="Ex: Em Revisão" onCancel={() => setNewCat(false)} onConfirm={(v) => { void createCategory(v); }} />
 
-      <InputDialog open={newBoard} title="Novo quadro" label="Nome do quadro"
-        placeholder="Ex: Marketing" onCancel={() => setNewBoard(false)} onConfirm={(v) => { void createBoard(v); }} />
-
       <InputDialog open={renameBoard} title="Renomear quadro" label="Novo nome"
-        initialValue={activeBoard?.name ?? ""}
+        initialValue={board.name}
         onCancel={() => setRenameBoard(false)} onConfirm={(v) => { void renameActiveBoard(v); }} />
 
       <ConfirmDialog open={!!confirmDel} variant="danger"
@@ -313,9 +242,9 @@ function Column({ category, cards, onAddCard, onEditCard, onEditCat, onDeleteCar
   const { setNodeRef, isOver } = useSortable({ id: category.id });
   return (
     <div ref={setNodeRef}
-      className={cn("w-80 shrink-0 bg-muted/40 rounded-lg p-3 flex flex-col",
+      className={cn("w-80 shrink-0 bg-muted/40 rounded-lg p-3 flex flex-col max-h-full",
         isOver && "ring-2 ring-primary")}>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: category.color || "#4F46E5" }} />
           <h3 className="text-sm font-semibold">{category.name}</h3>
@@ -334,7 +263,7 @@ function Column({ category, cards, onAddCard, onEditCard, onEditCat, onDeleteCar
         </DropdownMenu>
       </div>
       <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 flex-1 min-h-[40px]">
+        <div className="space-y-2 flex-1 min-h-[40px] overflow-y-auto pr-1">
           {cards.map((c) => (
             <SortableCard key={c.id} card={c}
               onClick={() => onEditCard(c)}
@@ -342,7 +271,7 @@ function Column({ category, cards, onAddCard, onEditCard, onEditCat, onDeleteCar
           ))}
         </div>
       </SortableContext>
-      <Button variant="ghost" size="sm" className="mt-2 justify-start" onClick={onAddCard}>
+      <Button variant="ghost" size="sm" className="mt-2 justify-start shrink-0" onClick={onAddCard}>
         <Plus className="h-4 w-4 mr-2" />Adicionar card
       </Button>
     </div>

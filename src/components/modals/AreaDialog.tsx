@@ -123,8 +123,8 @@ export function AreaDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-          <Button disabled={!name.trim()} onClick={() => onConfirm({ name: name.trim(), icon, color })}>
+          <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+          <Button type="button" disabled={!name.trim()} onClick={() => onConfirm({ name: name.trim(), icon, color })}>
             Salvar
           </Button>
         </DialogFooter>

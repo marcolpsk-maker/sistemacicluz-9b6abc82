@@ -8,7 +8,7 @@ import { ptBR } from "date-fns/locale";
 import { Calendar as CalIcon, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import type { Evento, Lembrete, Reuniao } from "@/types";
+import type { Evento, Reuniao } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DateKanbanModal } from "@/components/Calendario/DateKanbanModal";
 
 export const Route = createFileRoute("/_authenticated/calendario")({ component: CalendarPage });
 
@@ -34,32 +35,30 @@ function CalendarPage() {
   const [cursor, setCursor] = useState(new Date());
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [reunioes, setReunioes] = useState<Reuniao[]>([]);
-  const [lembretes, setLembretes] = useState<Lembrete[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", date: "", time: "" });
-  const [selected, setSelected] = useState<Date | null>(null);
+  
+  // Date selection opens the Kanban Modal
+  const [kanbanDate, setKanbanDate] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!user) return;
     let active = true;
     const load = async () => {
-      const [{ data: ev }, { data: re }, { data: le }] = await Promise.all([
+      const [{ data: ev }, { data: re }] = await Promise.all([
         supabase.from("eventos").select("*"),
         supabase.from("reunioes").select("*"),
-        supabase.from("lembretes").select("*").not("due_date", "is", null),
       ]);
       if (!active) return;
       setEventos(ev || []);
       setReunioes(re || []);
-      setLembretes(le || []);
       setLoading(false);
     };
     load();
     const ch = supabase.channel("calendar-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "eventos" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "reunioes" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "lembretes" }, load)
       .subscribe();
     return () => { active = false; supabase.removeChannel(ch); };
   }, [user]);
@@ -75,13 +74,8 @@ function CalendarPage() {
       list.push({ id: r.id, date: new Date(`${r.date}T${r.time}`),
         title: r.title, type: "meeting", color: "#10B981" });
     }
-    for (const l of lembretes) {
-      if (!l.due_date) continue;
-      list.push({ id: l.id, date: new Date(l.due_date),
-        title: l.title, type: "reminder", color: "#F59E0B" });
-    }
     return list;
-  }, [eventos, reunioes, lembretes]);
+  }, [eventos, reunioes]);
 
   const grid = useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 0 });
@@ -106,14 +100,12 @@ function CalendarPage() {
     setOpen(false);
   };
 
-  const selectedItems = selected ? itemsByDay(selected) : [];
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="flex items-center gap-2"><CalIcon className="h-7 w-7" /> Calendário</h1>
-          <p className="text-muted-foreground text-sm mt-1">Eventos, reuniões e lembretes</p>
+          <p className="text-muted-foreground text-sm mt-1">Eventos, reuniões e tarefas diárias</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setCursor(subMonths(cursor, 1))}>
@@ -167,17 +159,16 @@ function CalendarPage() {
               const today = isSameDay(day, new Date());
               return (
                 <button key={day.toISOString()}
-                  onClick={() => setSelected(day)}
+                  onClick={() => setKanbanDate(day)}
                   className={cn(
-                    "bg-card min-h-[88px] p-1.5 text-left transition-colors hover:bg-muted/40",
+                    "bg-card min-h-[100px] p-1.5 text-left transition-colors hover:bg-muted/40",
                     !inMonth && "opacity-40",
-                    selected && isSameDay(selected, day) && "ring-2 ring-primary z-10",
                   )}>
-                  <div className={cn("text-xs font-medium mb-1 inline-flex items-center justify-center w-6 h-6 rounded-full",
+                  <div className={cn("text-xs font-medium mb-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full",
                     today && "bg-primary text-primary-foreground")}>
                     {format(day, "d")}
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {dayItems.slice(0, 3).map((it) => (
                       <div key={`${it.type}-${it.id}`}
                         className="text-[10px] truncate px-1 py-0.5 rounded text-white"
@@ -186,7 +177,7 @@ function CalendarPage() {
                       </div>
                     ))}
                     {dayItems.length > 3 && (
-                      <div className="text-[10px] text-muted-foreground">+{dayItems.length - 3}</div>
+                      <div className="text-[10px] text-muted-foreground">+{dayItems.length - 3} itens</div>
                     )}
                   </div>
                 </button>
@@ -196,27 +187,11 @@ function CalendarPage() {
         </Card>
       )}
 
-      {selected && (
-        <Card className="p-4">
-          <h3 className="mb-3">{format(selected, "PPP", { locale: ptBR })}</h3>
-          {selectedItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem itens neste dia.</p>
-          ) : (
-            <ul className="space-y-2">
-              {selectedItems.map((it) => (
-                <li key={`${it.type}-${it.id}`} className="flex items-center gap-3 text-sm">
-                  <span className="w-2 h-2 rounded-full" style={{ background: it.color }} />
-                  <span className="font-medium">{it.title}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {format(it.date, "HH:mm")} ·{" "}
-                    {it.type === "meeting" ? "Reunião" : it.type === "reminder" ? "Lembrete" : "Evento"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
+      {/* Kanban Modal for selected date */}
+      <DateKanbanModal 
+        date={kanbanDate} 
+        onClose={() => setKanbanDate(null)} 
+      />
     </div>
   );
 }

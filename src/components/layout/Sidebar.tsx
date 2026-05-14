@@ -135,6 +135,7 @@ export function Sidebar() {
         </DndContext>
 
         <Button
+          type="button"
           variant="ghost"
           size="sm"
           onClick={() => setCreating(true)}

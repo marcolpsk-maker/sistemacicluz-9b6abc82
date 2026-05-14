@@ -231,6 +231,36 @@ function Inner() {
     setEdges((eds) => addEdge({ ...conn, id: data.id, type: "smoothstep" } as Edge, eds));
   }, [user, activeMap, setEdges]);
 
+  // ---- arrow navigation helpers ----
+  const navigate = useCallback((dir: "up" | "down" | "left" | "right") => {
+    const sel = selectedRef.current;
+    const ns = nodesRef.current;
+    const es = edgesRef.current;
+    if (!sel) { if (ns[0]) setSelectedId(ns[0].id); return; }
+    if (dir === "right") {
+      const child = es.find((e) => e.source === sel);
+      if (child) setSelectedId(child.target);
+      return;
+    }
+    if (dir === "left") {
+      const parent = es.find((e) => e.target === sel);
+      if (parent) setSelectedId(parent.source);
+      return;
+    }
+    // up/down: among siblings (same parent), sorted by Y
+    const incoming = es.find((e) => e.target === sel);
+    const siblingIds = incoming
+      ? es.filter((e) => e.source === incoming.source).map((e) => e.target)
+      : ns.filter((n) => !es.some((e) => e.target === n.id)).map((n) => n.id);
+    const sibs = siblingIds
+      .map((id) => ns.find((n) => n.id === id))
+      .filter((n): n is Node => !!n)
+      .sort((a, b) => a.position.y - b.position.y);
+    const idx = sibs.findIndex((n) => n.id === sel);
+    const next = dir === "up" ? sibs[idx - 1] : sibs[idx + 1];
+    if (next) setSelectedId(next.id);
+  }, []);
+
   // ---- keyboard shortcuts ----
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -247,13 +277,58 @@ function Inner() {
         e.preventDefault();
         const node = nodesRef.current.find((n) => n.id === sel);
         if (node && !(node.data as MindmapNodeData).isMain) void deleteNode(sel);
-      } else if (e.key === "Escape") {
+      } else if (e.key === "ArrowUp") { e.preventDefault(); navigate("up"); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); navigate("down"); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); navigate("left"); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); navigate("right"); }
+      else if (e.key === "Escape") {
         setSelectedId(null);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [deleteNode]);
+  }, [deleteNode, navigate]);
+
+  // ---- realtime sync ----
+  useEffect(() => {
+    if (!activeMap || !user) return;
+    const channel = supabase
+      .channel(`brainstorm:${activeMap}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "brainstorm_nodes", filter: `mindmap_id=eq.${activeMap}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as { id: string; title: string; parent_id: string | null; position: { x: number; y: number } };
+            setNodes((nds) => nds.some((n) => n.id === row.id) ? nds : [...nds, {
+              id: row.id, position: row.position || { x: 0, y: 0 }, type: "mindmapNode",
+              data: buildData(row.title, !row.parent_id),
+            }]);
+          } else if (payload.eventType === "UPDATE") {
+            const row = payload.new as { id: string; title: string; position: { x: number; y: number } };
+            setNodes((nds) => nds.map((n) => n.id === row.id
+              ? { ...n, position: row.position || n.position, data: { ...(n.data as MindmapNodeData), label: row.title } }
+              : n));
+          } else if (payload.eventType === "DELETE") {
+            const row = payload.old as { id: string };
+            setNodes((nds) => nds.filter((n) => n.id !== row.id));
+          }
+        })
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "brainstorm_connections", filter: `mindmap_id=eq.${activeMap}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as { id: string; source_id: string; target_id: string };
+            setEdges((eds) => eds.some((e) => e.id === row.id) ? eds : [...eds, {
+              id: row.id, source: row.source_id, target: row.target_id, type: "smoothstep",
+            }]);
+          } else if (payload.eventType === "DELETE") {
+            const row = payload.old as { id: string };
+            setEdges((eds) => eds.filter((e) => e.id !== row.id));
+          }
+        })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [activeMap, user, setNodes, setEdges, buildData]);
 
   const createMap = async (name: string) => {
     if (!user || !name.trim()) return;

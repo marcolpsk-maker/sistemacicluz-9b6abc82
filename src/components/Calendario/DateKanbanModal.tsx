@@ -105,8 +105,9 @@ export function DateKanbanModal({ date, onClose }: { date: Date | null; onClose:
             ) : (
               <DndContext 
                 sensors={sensors} 
-                collisionDetection={closestCorners}
+                collisionDetection={collisionDetection}
                 onDragStart={(e: DragStartEvent) => setActiveId(e.active.id as string)}
+                onDragOver={onDragOver}
                 onDragEnd={onDragEnd}
                 onDragCancel={() => setActiveId(null)}
               >

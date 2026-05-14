@@ -3,14 +3,15 @@ import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 
-export interface MindmapNodeData {
+export type MindmapNodeData = {
   label: string;
   isMain?: boolean;
   autoEdit?: boolean;
   onEdit?: (id: string, value: string) => void;
   onDelete?: (id: string) => void;
   onAddChild?: (id: string) => void;
-}
+  [k: string]: unknown;
+};
 
 export function MindmapNode({ data, selected, id }: NodeProps) {
   const d = data as unknown as MindmapNodeData;

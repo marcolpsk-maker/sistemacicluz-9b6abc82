@@ -109,5 +109,5 @@ export function useCalendarTasks(userId: string | undefined, date: Date | null) 
     }
   };
 
-  return { tasks, loading, addTask, updateTaskStatus, deleteTask, updateTaskTitle };
+  return { tasks, loading, addTask, updateTaskStatus, setTaskStatusLocal, deleteTask, updateTaskTitle };
 }

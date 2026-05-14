@@ -2,7 +2,7 @@ import { Outlet } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { motion } from "framer-motion";
 
-export function AppLayout() {
+export function AppLayout({ children }: { children?: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
@@ -13,7 +13,7 @@ export function AppLayout() {
           transition={{ duration: 0.2, ease: "easeOut" }}
           className="px-4 md:px-8 py-6 md:py-8 pt-16 md:pt-8 max-w-7xl mx-auto"
         >
-          <Outlet />
+          {children ?? <Outlet />}
         </motion.div>
       </main>
     </div>

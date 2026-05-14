@@ -484,11 +484,12 @@ function Inner() {
           </ReactFlow>
         )}
 
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-background/95 backdrop-blur border rounded-full flex gap-3 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground shadow-sm">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-[95vw] px-3 py-2 bg-background/95 backdrop-blur border rounded-full flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground shadow-sm">
           <span className="flex items-center gap-1.5"><kbd className="bg-muted px-1.5 py-0.5 rounded">Tab</kbd> Filho</span>
           <span className="flex items-center gap-1.5"><kbd className="bg-muted px-1.5 py-0.5 rounded">Enter</kbd> Irmão</span>
           <span className="flex items-center gap-1.5"><kbd className="bg-muted px-1.5 py-0.5 rounded">↑↓←→</kbd> Navegar</span>
           <span className="flex items-center gap-1.5"><kbd className="bg-muted px-1.5 py-0.5 rounded">Del</kbd> Excluir</span>
+          <span className="flex items-center gap-1.5"><kbd className="bg-muted px-1.5 py-0.5 rounded">Ctrl+Z</kbd> Desfazer</span>
           <span className="flex items-center gap-1.5"><kbd className="bg-muted px-1.5 py-0.5 rounded">2× clique</kbd> Editar</span>
         </div>
       </div>
